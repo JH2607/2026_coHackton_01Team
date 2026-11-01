@@ -1,7 +1,7 @@
 
 import streamlit as st
 
-st.title("김밥팀 해커톤 프로젝트")
+st.title("해커톤 프로젝트 1조")
 
 st.write("AI 서비스 개발환경 테스트")
 
