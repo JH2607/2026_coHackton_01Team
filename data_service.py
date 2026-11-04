@@ -20,18 +20,22 @@ def load_csv(filename):
 
 
 def get_places(region, max_price):
-    places = load_csv("places.csv")
     results = []
 
-    for place in places:
-        if place["region"] != region:
+    for place in get_places_by_region(region):
+        price_text = place.get("price_krw", "").strip()
+
+        # 가격 미확인 장소 제외
+        if not price_text:
             continue
 
-        # 가격을 모르는 장소는 우선 제외
-        if not place["price"].strip():
+        # 잘못된 가격 형식 제외
+        try:
+            price = int(price_text)
+        except ValueError:
             continue
 
-        if int(place["price"]) <= max_price:
+        if 0 <= price <= max_price:
             results.append(place)
 
     return results
