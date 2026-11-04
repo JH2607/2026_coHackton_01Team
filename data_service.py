@@ -10,6 +10,7 @@ import csv
 from pathlib import Path
 
 DATA_DIR = Path(__file__).parent / "data"
+DATA_PATH = DATA_DIR / "places.csv"
 
 def load_csv(filename):
     path = DATA_DIR / filename
@@ -37,7 +38,7 @@ def get_places(region, max_price):
 
 
 def get_travelers(region):
-    travelers = load_csv("travelers.csv")
+    travelers = load_csv("travelers_demo.csv")
 
     return [
         traveler
@@ -45,3 +46,20 @@ def get_travelers(region):
         if traveler["region"] == region
         and traveler["match_opt_in"].lower() == "true"
     ]
+
+def get_places_by_region(region):
+    with open(DATA_DIR / "places.csv", encoding="utf-8-sig", newline="") as file:
+        places = list(csv.DictReader(file))
+
+    return [
+        place for place in places
+        if place["region"] == region
+    ]
+
+if __name__ == "__main__":
+    seongsu = get_places_by_region("성수")
+    hongdae = get_places_by_region("홍대")
+
+    print("성수:", len(seongsu), "곳")
+    print("홍대:", len(hongdae), "곳")
+

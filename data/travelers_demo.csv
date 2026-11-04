@@ -1,0 +1,5 @@
+﻿traveler_id,region,start_time,end_time,interests,match_opt_in,is_demo
+T001,성수,2026-11-14 13:00,2026-11-14 17:00,전시|카페,true,true
+T002,성수,2026-11-14 14:00,2026-11-14 18:00,카페|전시,true,true
+T003,홍대,2026-11-14 13:00,2026-11-14 16:00,음악|게임,true,true
+T004,성수,2026-11-14 13:00,2026-11-14 17:00,전시,false,true
