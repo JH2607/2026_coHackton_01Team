@@ -56,6 +56,26 @@ def get_places_by_region(region):
         if place["region"] == region
     ]
 
+def get_candidate_places(user_input: dict) -> list[dict]:
+    """AI 담당자에게 넘길, 검증 가능한 예산·카테고리 조건 통과 후보.
+
+    이 함수는 현재 ui.py가 바로 호출하지 않는, 추후 AI 연결용 함수입니다.
+    """
+    results = []
+    for place in get_places_by_region(user_input["region"]):
+        if place["category"] not in user_input["categories"]:
+            continue
+        price = place["price_krw"].strip()
+        if not price:
+            continue  # 미확인 가격을 무료(0원)로 오인하지 않도록 제외
+        try:
+            amount = int(price)
+        except ValueError:
+            continue
+        if 0 <= amount <= user_input["max_price"]:
+            results.append(place)
+    return results
+    
 if __name__ == "__main__":
     seongsu = get_places_by_region("성수")
     hongdae = get_places_by_region("홍대")
