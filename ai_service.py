@@ -18,7 +18,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 # ---------------------------------------------------------
-# [요구사항 1] OpenRouter API 연결 및 클라이언트 초기화
+# OpenRouter API 연결 및 클라이언트 초기화
 # ---------------------------------------------------------
 def get_openrouter_client() -> tuple[OpenAI, str]:
     """
@@ -41,9 +41,9 @@ def get_openrouter_client() -> tuple[OpenAI, str]:
     )
     return client, model
 # ---------------------------------------------------------
-# [요구사항 2] 서비스 목적에 맞는 기본 프롬프트 정의
+# 서비스 목적에 맞는 기본 프롬프트 정의
 # ---------------------------------------------------------
-# (1) 맞춤형 여행 장소 추천 프롬프트 (ui.py의 폼 입력 데이터와 100% 호환)
+# (1) 맞춤형 여행 장소 추천 프롬프트 (ui.py의 폼 입력 데이터와 호환)
 RECOMMEND_SYSTEM_PROMPT = """
 너는 국내 로컬 여행 코스 전문 AI 플래너다.
 사용자의 여행 지역(region), 여행 시간대(start_time ~ end_time), 1곳당 최대 예산(max_price), 관심 분야(categories)를 반영하여 최적의 추천 코스를 작성한다.
@@ -84,7 +84,7 @@ MATCHING_SYSTEM_PROMPT = """
 }
 """
 # ---------------------------------------------------------
-# [요구사항 5] API 오류 처리 (Fallback 메커니즘)
+# API 오류 처리 (Fallback 메커니즘)
 # ---------------------------------------------------------
 def _get_fallback_recommendation(user_input: Dict[str, Any]) -> Dict[str, Any]:
     """API 호출 실패, 키 누락, 네트워크 오류 시 서비스가 멈추지 않도록 기본 추천 데이터 반환"""
@@ -140,7 +140,7 @@ def _parse_llm_json(raw_text: str) -> Dict[str, Any]:
         cleaned = cleaned[:-len("```")].strip()
     return json.loads(cleaned)
 # ---------------------------------------------------------
-# [요구사항 4] AI 결과를 일정한 형식으로 반환하는 함수
+# AI 결과를 일정한 형식으로 반환하는 함수
 # ---------------------------------------------------------
 def generate_travel_recommendation(user_input: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -195,7 +195,7 @@ def match_travelers(user_a: Dict[str, Any], user_b: Dict[str, Any]) -> Dict[str,
         logger.error(f"[AI Matching Error]: {e}")
         return _get_fallback_matching()
 # ---------------------------------------------------------
-# [요구사항 3] 예시 입력 1~3개로 AI 응답 테스트 (직접 실행용 코드)
+# 예시 입력 1~3개로 AI 응답 테스트 (직접 실행용 코드)
 # ---------------------------------------------------------
 if __name__ == "__main__":
     print("=" * 60)
