@@ -214,6 +214,28 @@ def photo_path(trip: dict) -> Path | None:
     return path if path.exists() else None
 
 
+def delete_trip(trip_id: str, user_id: str) -> str | None:
+    """휴지통 버튼.
+    - 만든 사람: 여행 파일 · 사진을 완전히 지운다. 공유받은 친구의 사물함에서도 사라진다.
+    - 공유받은 사람: 내 사물함에서만 뺀다 (원래 파일은 그대로, 내 찜도 함께 지움).
+    """
+    trips = _read(TRIPS_PATH, [])
+    trip = _find(trips, trip_id)
+    if trip is None:
+        return "이 여행을 찾을 수 없어요."
+    if trip["owner"] == user_id:
+        if trip["photo"]:
+            (PHOTO_DIR / trip["photo"]).unlink(missing_ok=True)
+        trips.remove(trip)
+    elif user_id in trip["shared_with"]:
+        trip["shared_with"].remove(user_id)
+        trip["favorites"].pop(user_id, None)
+    else:
+        return "이 여행을 지울 수 있는 권한이 없어요."
+    _write(TRIPS_PATH, trips)
+    return None
+
+
 # ---------------------------------------------------------------------
 # 찜(하트) — 여행마다, 사람마다 따로 저장
 # ---------------------------------------------------------------------

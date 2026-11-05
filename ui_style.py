@@ -205,6 +205,21 @@ header[data-testid="stHeader"] { background: transparent; }
 }
 [data-testid="stFileUploaderDropzone"] { font-size: 1.05rem; }
 [data-testid="stFileUploaderDropzone"] small { font-size: 0.95rem; }
+
+/* 사용자가 입력하는 칸: 테두리를 그려서 어디에 쓰는지 잘 보이게 (폼 · 팝업 · 여행 수정 모두) */
+[data-testid="stTextInputRootElement"], [data-testid="stTextAreaRootElement"],
+[data-testid="stSelectbox"] [role="group"], [data-testid="stMultiSelect"] [role="group"],
+[data-testid="stDateInputField"] {
+  border: 1.5px solid #1F2B24 !important; border-radius: 10px !important; background: #FFFFFF !important;
+}
+[data-testid="stTextInputRootElement"]:focus-within, [data-testid="stTextAreaRootElement"]:focus-within,
+[data-testid="stSelectbox"] [role="group"]:focus-within, [data-testid="stMultiSelect"] [role="group"]:focus-within,
+[data-testid="stDateInputField"]:focus-within {
+  border-color: #F07B2A !important; box-shadow: 0 0 0 2px rgba(240, 123, 42, 0.25);
+}
+[data-testid="stFileUploaderDropzone"] {
+  border: 1.5px dashed #1F2B24 !important; border-radius: 12px !important; background: #FFFFFF !important;
+}
 .block-container { max-width: 1440px; padding: 2.2rem 3rem 3rem; }
 
 /* 버튼: 둥글고 Jua 글꼴 */
@@ -366,7 +381,12 @@ header[data-testid="stHeader"] { background: transparent; }
 }
 .gb-detail-title { font-family: 'Jua', sans-serif; font-size: 2rem; margin: 1rem 0 0.2rem; }
 .gb-subtitle { font-family: 'Jua', sans-serif; font-size: 1.35rem; margin: 1.4rem 0 0.4rem; }
-.gb-share-line { display: inline-block; background: #FFFDF5; border: 1.5px solid #1F2B24; border-radius: 999px; padding: 3px 14px; margin: 0.4rem 0; }
+/* 공유 상태 글자가 옆의 아이콘 버튼과 같은 높이에 오도록 (Streamlit 기본 아래 여백 -1rem 없애기) */
+[data-testid="stMarkdownContainer"]:has(> .gb-share-line) { margin-bottom: 0 !important; }
+/* 휴지통: 오른쪽 끝, 마우스를 올리면 빨갛게 */
+.st-key-delete_trip { align-self: flex-end !important; width: auto !important; }
+.st-key-delete_trip button:hover { color: #C0392B !important; border-color: #C0392B !important; }
+.gb-share-line { display: inline-block; background: #FFFDF5; border: 1.5px solid #1F2B24; border-radius: 999px; padding: 3px 14px; margin: 0; }
 .gb-fav-box { background: #FFFDF5; border: 2px solid #1F2B24; border-radius: 16px; padding: 10px 16px; margin-bottom: 10px; }
 .gb-fav-box b { font-family: 'Jua', sans-serif; font-weight: 400; font-size: 1.1rem; }
 .gb-fav-box ul { margin: 6px 0 0; padding-left: 1.2rem; }

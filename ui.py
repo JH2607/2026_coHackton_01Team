@@ -7,6 +7,7 @@
   ⑤ [확인] 후             : 추천 내용 카드 (하트로 찜) + 동행에게 공유
                             맨 아래 [사물함에 저장]을 눌러야 사물함에 들어감 (공유 버튼을 눌러도 자동 저장)
   사물함                  : 예전 여행 기획 카드 → [열어 보기] → 사진 · 이름 · 소감 · 공유 · 찜한 리스트 · 추천
+                            휴지통: 만든 사람은 파일 삭제(친구 사물함에서도 사라짐), 공유받은 사람은 내 사물함에서만 빼기
 
 관련 파일
   ui_style.py   색 · 글꼴 · 로고 · 분류별 그림
@@ -139,6 +140,35 @@ def share_dialog(trip_id: str):
         else:
             flash(f"{to_user.strip()}님에게 공유했어요!")
             st.rerun()
+
+
+@st.dialog("여행 파일 삭제", width="small")
+def delete_dialog(trip_id: str):
+    user_id = st.session_state["user"]
+    trip = user_store.get_trip(trip_id)
+    if trip is None:
+        st.rerun()
+    if trip["owner"] == user_id:
+        st.markdown(f"**'{esc(trip['title'])}'** 파일을 삭제할까요?")
+        st.caption("사진 · 소감 · 찜한 리스트가 모두 지워지고, 공유한 친구의 사물함에서도 사라져요. 되돌릴 수 없어요.")
+    else:
+        st.markdown(f"**'{esc(user_store.auto_title(trip['conditions']))}'** 를 내 사물함에서 뺄까요?")
+        st.caption(f"{trip['owner']}님의 원래 파일은 그대로 남아요. 다시 보려면 {trip['owner']}님이 다시 공유해야 해요.")
+
+    cancel_col, ok_col = st.columns(2)
+    if cancel_col.button("취소", use_container_width=True):
+        st.rerun()
+    if ok_col.button("삭제", type="primary", use_container_width=True):
+        error = user_store.delete_trip(trip_id, user_id)
+        if error:
+            st.error(error)
+            return
+        plan = st.session_state.get("plan")
+        if plan and plan["trip_id"] == trip_id:
+            st.session_state.pop("plan")  # 지금 보고 있던 계획의 파일이면 계획도 같이 닫기
+        close_trip()
+        flash("삭제했어요.")
+        st.rerun()
 
 
 # =====================================================================
@@ -416,6 +446,11 @@ def render_share_button(trip_id: str, key: str):
         share_dialog(trip_id)
 
 
+def render_delete_button(trip_id: str, help_text: str):
+    if st.button(":material/delete:", key="delete_trip", help=help_text):
+        delete_dialog(trip_id)
+
+
 # =====================================================================
 # ⑤ 이번 여행 추천 결과
 # =====================================================================
@@ -538,15 +573,19 @@ def render_owner_info(trip: dict, user_id: str):
             flash("저장했어요.")
             st.rerun()
 
-    line_col, button_col = st.columns([6, 1], vertical_alignment="center")
-    if trip["shared_with"]:
-        names = ", ".join(trip["shared_with"])
-        line_col.markdown(f'<div class="gb-share-line">🤝 {esc(names)}님과 공유한 여행이에요</div>',
-                          unsafe_allow_html=True)
-    else:
-        line_col.markdown('<div class="gb-share-line">아직 아무와도 공유하지 않았어요</div>', unsafe_allow_html=True)
-    with button_col:
+    # 왼쪽: 공유 상태 글자 + 바로 옆에 공유(사람) 아이콘 / 오른쪽 끝: 휴지통
+    left, right = st.columns([6, 1], vertical_alignment="center")
+    with left, st.container(horizontal=True, vertical_alignment="center", gap="small"):
+        if trip["shared_with"]:
+            names = ", ".join(trip["shared_with"])
+            st.markdown(f'<div class="gb-share-line">🤝 {esc(names)}님과 공유한 여행이에요</div>',
+                        unsafe_allow_html=True, width="content")
+        else:
+            st.markdown('<div class="gb-share-line">아직 아무와도 공유하지 않았어요</div>',
+                        unsafe_allow_html=True, width="content")
         render_share_button(trip["trip_id"], key="share_detail")
+    with right:
+        render_delete_button(trip["trip_id"], help_text="이 여행 파일 삭제")
 
 
 def render_favorites(trip: dict, user_id: str, places_by_id: dict):
@@ -579,9 +618,13 @@ def render_trip_detail(user_id: str, trip_id: str, places_by_id: dict):
     if trip["owner"] == user_id:
         render_owner_info(trip, user_id)
     else:
-        st.markdown(f'<div class="gb-detail-title">{esc(user_store.auto_title(trip["conditions"]))}</div>'
-                    f'<div class="gb-share-line">🤝 {esc(trip["owner"])}님이 공유한 여행이에요</div>',
+        st.markdown(f'<div class="gb-detail-title">{esc(user_store.auto_title(trip["conditions"]))}</div>',
                     unsafe_allow_html=True)
+        left, right = st.columns([6, 1], vertical_alignment="center")
+        left.markdown(f'<div class="gb-share-line">🤝 {esc(trip["owner"])}님이 공유한 여행이에요</div>',
+                      unsafe_allow_html=True)
+        with right:
+            render_delete_button(trip["trip_id"], help_text="내 사물함에서 빼기")
 
     render_favorites(trip, user_id, places_by_id)
     st.markdown('<div class="gb-subtitle">추천 결과</div>', unsafe_allow_html=True)
