@@ -153,6 +153,15 @@ _BG = {
 }
 
 
+_MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
+
+
+def photo_uri(path) -> str:
+    """사용자가 올린 사진 파일 → <img src="...">에 넣을 수 있는 형태."""
+    mime = _MIME.get(path.suffix.lower(), "image/png")
+    return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode('ascii')}"
+
+
 def category_image_uri(category: str) -> str:
     """분류 이름 → 노란 톤 그림(data URI)."""
     icon = _ICONS.get(category, _DEFAULT_ICON)
@@ -177,13 +186,15 @@ CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap');
 
+/* 전체를 조금 크게: Streamlit은 rem 단위를 쓰므로 기준 글자 크기를 16px → 18px로 */
+html { font-size: 18px; }
 html, body, .stApp, p, li, label, input, textarea, button {
   font-family: 'Gowun Dodum', system-ui, sans-serif;
 }
 h1, h2, h3, h4 { font-family: 'Jua', system-ui, sans-serif !important; font-weight: 400 !important; }
 
 header[data-testid="stHeader"] { background: transparent; }
-.block-container { max-width: 1040px; padding-top: 2.2rem; }
+.block-container { max-width: 1440px; padding: 2.2rem 3rem 3rem; }
 
 /* 버튼: 둥글고 Jua 글꼴 */
 .stButton button, .stFormSubmitButton button {
@@ -208,9 +219,9 @@ header[data-testid="stHeader"] { background: transparent; }
   padding: 0.45rem 1.1rem; display: inline-block; font-size: 0.98rem;
 }
 .gb-hero { text-align: center; margin: 2.2rem 0 0.6rem; }
-.gb-hero img { display: block; margin: 0 auto; }
-.gb-hero-name { font-family: 'Jua', sans-serif; font-size: 76px; line-height: 1.1; color: #1F2B24; margin-top: 10px; }
-.gb-hero-team { font-weight: 700; letter-spacing: 0.4em; font-size: 14px; color: #1F2B24; }
+.gb-hero img { display: block; margin: 0 auto; width: 230px; height: 230px; }
+.gb-hero-name { font-family: 'Jua', sans-serif; font-size: 92px; line-height: 1.1; color: #1F2B24; margin-top: 12px; }
+.gb-hero-team { font-weight: 700; letter-spacing: 0.4em; font-size: 16px; color: #1F2B24; }
 .gb-scroll { text-align: center; margin: 2.4rem 0 2.8rem; font-size: 0.95rem; color: #1F2B24; }
 .gb-scroll .gb-arrow { display: block; font-size: 1.6rem; animation: gb-bounce 1.6s infinite; }
 @keyframes gb-bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
@@ -232,24 +243,43 @@ header[data-testid="stHeader"] { background: transparent; }
 .gb-pv-card img { display: block; width: 100%; }
 .gb-pv-card div { padding: 4px 8px; }
 .gb-pv-btn { display: inline-block; margin-top: 10px; padding: 4px 16px; border-radius: 999px; background: #1F2B24; color: #FFFDF5; font-family: 'Jua', sans-serif; }
+.gb-pv-hint {
+  display: inline-block; margin-top: 12px; padding: 4px 12px; border-radius: 10px;
+  background: #F6C945; font-family: 'Jua', sans-serif; font-size: 0.9rem; transform: rotate(-2deg);
+}
+.gb-pv-files { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.gb-pv-file { border: 1.5px solid #1F2B24; border-radius: 12px; background: #fff; overflow: hidden; font-size: 0.75rem; }
+.gb-pv-file img { display: block; width: 100%; }
+.gb-pv-file div { padding: 3px 6px; }
 .gb-footer { text-align: center; margin: 3rem 0 1rem; font-size: 0.85rem; letter-spacing: 0.2em; }
 
 /* ---------- ④⑤ 메인 화면 ---------- */
 .gb-logo-small { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.gb-logo-small span { font-family: 'Jua', sans-serif; font-size: 1.3rem; line-height: 1; }
-.gb-tagline { font-size: 1.02rem; line-height: 1.9; }
-.gb-tagline span { border-bottom: 2px solid #1F2B24; }
+.gb-logo-small img { width: 64px; height: 64px; }
+.gb-logo-small span { font-family: 'Jua', sans-serif; font-size: 1.4rem; line-height: 1; }
+.gb-tagline { font-size: 1.05rem; line-height: 1.8; }
+
+/* 오른쪽 위: [ID 상자] / 로그아웃(글자 링크) + 프로필 동그라미(아이디 전체) */
 .gb-userid {
-  border: 2px solid #1F2B24; border-radius: 12px; background: #FFFDF5;
-  padding: 6px 12px; font-family: 'Jua', sans-serif; font-size: 1.1rem; text-align: center;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 2px solid #1F2B24; border-radius: 10px; background: #FFFDF5;
+  padding: 6px 12px; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.gb-userid b { font-family: 'Jua', sans-serif; font-weight: 400; margin-right: 6px; }
 .gb-avatar {
-  width: 58px; height: 58px; border-radius: 50%; border: 2px solid #1F2B24;
-  background: #F6C945; display: flex; align-items: center; justify-content: center;
-  font-family: 'Jua', sans-serif; font-size: 1.6rem; margin: 0 auto;
+  width: 92px; height: 92px; border-radius: 50%; border: 2px solid #1F2B24;
+  background: #F6C945; display: flex; align-items: center; justify-content: center; text-align: center;
+  font-family: 'Jua', sans-serif; line-height: 1.1; padding: 8px; box-sizing: border-box;
+  overflow-wrap: anywhere; margin: 0 auto;
 }
-.gb-slider-ends { display: flex; justify-content: space-between; font-size: 0.9rem; margin-top: -0.6rem; }
+/* 로그아웃: 버튼 대신 파란 밑줄 글자처럼 보이게 */
+.st-key-logout button {
+  border: none !important; background: transparent !important; padding: 0 !important; min-height: 0 !important;
+  font-family: 'Gowun Dodum', sans-serif !important; font-size: 0.95rem !important;
+  color: #1F56B8 !important; text-decoration: underline; text-underline-offset: 3px;
+}
+.st-key-logout button:hover { color: #163F87 !important; }
+
+.gb-form-title { font-family: 'Jua', sans-serif; font-size: 1.55rem; margin: -0.2rem 0 0.4rem; }
 
 .gb-section-title { display: flex; align-items: center; gap: 12px; font-family: 'Jua', sans-serif; font-size: 1.8rem; }
 .gb-section-title::after { content: ""; flex: 1; height: 3px; background: #1F2B24; border-radius: 2px; }
@@ -257,12 +287,44 @@ header[data-testid="stHeader"] { background: transparent; }
 .gb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0.3rem 0 1rem; }
 .gb-chip { background: #FFFDF5; border: 1.5px solid #1F2B24; border-radius: 999px; padding: 2px 12px; font-size: 0.9rem; }
 
-.gb-card-img img { display: block; width: 100%; height: 170px; object-fit: cover; border-radius: 12px; border: 2px solid #1F2B24; }
+.gb-card-img { margin-bottom: 14px; }  /* 그림과 하트 사이 간격 */
+.gb-card-img img { display: block; width: 100%; aspect-ratio: 2 / 1; object-fit: cover; border-radius: 12px; border: 2px solid #1F2B24; }
 .gb-card-img a:focus-visible img { outline: 3px solid #F07B2A; outline-offset: 2px; }
 .gb-card-name { font-family: 'Jua', sans-serif; font-size: 1.15rem; line-height: 1.3; }
 .gb-card-name small { font-family: 'Gowun Dodum', sans-serif; font-size: 0.85rem; }
 .gb-card-line { font-size: 0.92rem; color: #3F4A43; }
 .gb-cost { display: inline-block; margin-top: 4px; background: #F6C945; border-radius: 999px; padding: 1px 10px; font-size: 0.88rem; }
 .gb-cost.unknown { background: #EFE6CC; }
+
+/* ---------- 예전 여행 기획 사물함 ---------- */
+.gb-double-line { border-top: 3px solid #1F2B24; border-bottom: 3px solid #1F2B24; height: 6px; margin: 2.6rem 0 1.6rem; }
+.gb-locker-title {
+  display: inline-block; font-family: 'Jua', sans-serif; font-size: 1.9rem; padding: 0.3rem 1.4rem;
+  background: #F6C945; border: 3px dashed #1F2B24; border-radius: 28px; transform: rotate(-1.5deg);
+  margin-bottom: 0.4rem;
+}
+.gb-locker-sub { font-size: 0.95rem; margin-bottom: 1rem; }
+.gb-file-img img {
+  display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover;
+  border-radius: 14px; border: 2px solid #1F2B24; box-shadow: 5px 5px 0 #F6C945;
+}
+.gb-file-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0 6px; }
+.gb-file-name { font-family: 'Jua', sans-serif; font-size: 1.1rem; border: 2px solid #1F2B24; border-radius: 8px; padding: 1px 10px; background: #FFFDF5; }
+.gb-file-date { font-size: 0.8rem; border: 1.5px solid #1F2B24; border-radius: 6px; padding: 1px 8px; background: #FFFDF5; }
+.gb-file-note { font-size: 0.9rem; border-bottom: 1.5px solid #1F2B24; padding-bottom: 4px; min-height: 1.6rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gb-file-shared { display: inline-block; font-size: 0.8rem; background: #3C9A4E; color: #fff; border-radius: 999px; padding: 1px 10px; }
+
+/* ---------- 여행 자세히 보기 ---------- */
+.gb-detail-photo img {
+  display: block; width: 100%; max-width: 640px; aspect-ratio: 16 / 10; object-fit: cover; margin: 0.6rem auto 0;
+  border-radius: 20px; border: 2px solid #1F2B24; box-shadow: 8px 8px 0 #F6C945;
+}
+.gb-detail-title { font-family: 'Jua', sans-serif; font-size: 2rem; margin: 1rem 0 0.2rem; }
+.gb-subtitle { font-family: 'Jua', sans-serif; font-size: 1.35rem; margin: 1.4rem 0 0.4rem; }
+.gb-share-line { display: inline-block; background: #FFFDF5; border: 1.5px solid #1F2B24; border-radius: 999px; padding: 3px 14px; margin: 0.4rem 0; }
+.gb-fav-box { background: #FFFDF5; border: 2px solid #1F2B24; border-radius: 16px; padding: 10px 16px; margin-bottom: 10px; }
+.gb-fav-box b { font-family: 'Jua', sans-serif; font-weight: 400; font-size: 1.1rem; }
+.gb-fav-box ul { margin: 6px 0 0; padding-left: 1.2rem; }
 </style>
 """
