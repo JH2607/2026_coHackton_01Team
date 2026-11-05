@@ -194,6 +194,17 @@ html, body, .stApp, p, li, label, input, textarea, button {
 h1, h2, h3, h4 { font-family: 'Jua', system-ui, sans-serif !important; font-weight: 400 !important; }
 
 header[data-testid="stHeader"] { background: transparent; }
+
+/* 입력칸 이름(라벨)과 입력한 글자를 조금 더 크게 */
+[data-testid="stWidgetLabel"] p { font-size: 1.12rem !important; }
+[data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea, [data-testid="stDateInput"] input,
+[data-testid="stDateInputField"], [data-testid="stDateInputField"] span,
+[data-testid="stSelectbox"] input, [data-testid="stSelectbox"] div,
+[data-testid="stMultiSelect"] input, [data-testid="stMultiSelect"] div, [data-testid="stMultiSelect"] span {
+  font-size: 1.1rem !important;
+}
+[data-testid="stFileUploaderDropzone"] { font-size: 1.05rem; }
+[data-testid="stFileUploaderDropzone"] small { font-size: 0.95rem; }
 .block-container { max-width: 1440px; padding: 2.2rem 3rem 3rem; }
 
 /* 버튼: 둥글고 Jua 글꼴 */
@@ -247,6 +258,18 @@ header[data-testid="stHeader"] { background: transparent; }
   display: inline-block; margin-top: 12px; padding: 4px 12px; border-radius: 10px;
   background: #F6C945; font-family: 'Jua', sans-serif; font-size: 0.9rem; transform: rotate(-2deg);
 }
+.gb-pv-link { display: flex; align-items: center; gap: 14px; }
+.gb-pv-link .gb-pv-card { flex: 0 0 40%; box-shadow: 0 0 0 3px #F07B2A; }
+.gb-pv-arrow { font-family: 'Jua', sans-serif; text-align: center; font-size: 1rem; line-height: 1.3; }
+.gb-pv-arrow b { display: block; font-size: 1.8rem; font-weight: 400; }
+.gb-pv-browser { flex: 1; border: 1.5px solid #1F2B24; border-radius: 12px; background: #fff; overflow: hidden; }
+.gb-pv-bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px; background: #FFE8B3; border-bottom: 1.5px solid #1F2B24; }
+.gb-pv-bar span { width: 8px; height: 8px; border-radius: 50%; background: #1F2B24; opacity: .5; }
+.gb-pv-url { flex: 1; margin-left: 6px; background: #fff; border: 1px solid #1F2B24; border-radius: 6px; padding: 0 6px; font-size: 0.72rem; }
+.gb-pv-page { padding: 10px; display: grid; gap: 6px; }
+.gb-pv-page i { display: block; height: 8px; border-radius: 4px; background: #EFE6CC; }
+.gb-pv-page i:first-child { width: 60%; height: 12px; background: #F6C945; }
+.gb-pv-page i:nth-child(3) { width: 80%; }
 .gb-pv-files { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .gb-pv-file { border: 1.5px solid #1F2B24; border-radius: 12px; background: #fff; overflow: hidden; font-size: 0.75rem; }
 .gb-pv-file img { display: block; width: 100%; }
@@ -271,7 +294,8 @@ header[data-testid="stHeader"] { background: transparent; }
   font-family: 'Jua', sans-serif; line-height: 1.1; padding: 8px; box-sizing: border-box;
   overflow-wrap: anywhere; margin: 0 auto;
 }
-/* 로그아웃: 버튼 대신 파란 밑줄 글자처럼 보이게 */
+/* 로그아웃: 버튼 대신 파란 밑줄 글자처럼 보이게, 오른쪽 정렬 */
+.st-key-logout { align-self: flex-end !important; }
 .st-key-logout button {
   border: none !important; background: transparent !important; padding: 0 !important; min-height: 0 !important;
   font-family: 'Gowun Dodum', sans-serif !important; font-size: 0.95rem !important;

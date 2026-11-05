@@ -138,7 +138,19 @@ PREVIEW_RECOMMEND = f"""
     <div class="gb-pv-card"><img src="{ui_style.category_image_uri('카페')}" alt=""><div>카페 ♡</div></div>
     <div class="gb-pv-card"><img src="{ui_style.category_image_uri('문화체험')}" alt=""><div>문화체험 ♡</div></div>
   </div>
-  <div style="text-align:center"><span class="gb-pv-hint">👆 그림을 누르면 원래 페이지로!</span></div>
+</div>"""
+
+PREVIEW_LINK = f"""
+<div class="gb-preview" aria-hidden="true">
+  <div class="gb-pv-link">
+    <div class="gb-pv-card"><img src="{ui_style.category_image_uri('전시')}" alt=""><div>전시 ♡</div></div>
+    <div class="gb-pv-arrow">👆 클릭<b>→</b></div>
+    <div class="gb-pv-browser">
+      <div class="gb-pv-bar"><span></span><span></span><span></span><div class="gb-pv-url">원래 안내 페이지</div></div>
+      <div class="gb-pv-page"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+  <div style="text-align:center"><span class="gb-pv-hint">그림을 누르면 원래 페이지로!</span></div>
 </div>"""
 
 PREVIEW_SHARE = """
@@ -187,8 +199,7 @@ def render_landing():
 
     render_feature(
         "기능 1 · 맞춤 장소 추천",
-        "목적지, 날짜, 꼭 체험해 보고 싶은 것을 고르면 성수·홍대의 음식점, 카페, 문화체험 등을 추천해 드려요.<br>"
-        "<b>카드의 그림을 누르면 그 장소의 원래 안내 페이지로 이동해요.</b> "
+        "목적지, 날짜, 꼭 체험해 보고 싶은 것을 고르면 성수·홍대의 음식점, 카페, 문화체험 등을 추천해 드려요. "
         "마음에 드는 곳은 하트로 찜해 두세요.",
         PREVIEW_RECOMMEND, preview_left=True,
     )
@@ -199,10 +210,16 @@ def render_landing():
         PREVIEW_SHARE, preview_left=False,
     )
     render_feature(
-        "기능 3 · 예전 여행 기획 사물함",
+        "기능 3 · 그림을 누르면 원래 페이지로",
+        "추천 카드의 그림을 누르면 그 장소의 원래 안내 페이지가 새 탭으로 열려요. "
+        "영업시간, 위치, 가격 같은 자세한 정보를 바로 확인할 수 있어요.",
+        PREVIEW_LINK, preview_left=True,
+    )
+    render_feature(
+        "기능 4 · 예전 여행 기획 사물함",
         "[확인]을 누른 여행은 사물함에 자동으로 저장돼요. "
         "여행 이름을 바꾸고, 사진과 소감을 남겨 두었다가 언제든 다시 꺼내 볼 수 있어요.",
-        PREVIEW_LOCKER, preview_left=True,
+        PREVIEW_LOCKER, preview_left=False,
     )
 
     st.markdown('<div class="gb-footer">TEAM GIMBAP · 2026 연합 해커톤</div>', unsafe_allow_html=True)
