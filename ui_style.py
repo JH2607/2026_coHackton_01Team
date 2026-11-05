@@ -206,6 +206,10 @@ header[data-testid="stHeader"] { background: transparent; }
 [data-testid="stFileUploaderDropzone"] { font-size: 1.05rem; }
 [data-testid="stFileUploaderDropzone"] small { font-size: 0.95rem; }
 
+/* 팝업(로그인 · 회원가입 · 공유 · 삭제): 뒤 화면은 노란색 대신 회색으로 어둡게, 팝업 상자는 흰색 */
+[data-testid="stDialog"] { background-color: rgba(31, 43, 36, 0.45) !important; }
+[data-testid="stDialog"] > div { background-color: #FFFFFF !important; }
+
 /* 사용자가 입력하는 칸: 테두리를 그려서 어디에 쓰는지 잘 보이게 (폼 · 팝업 · 여행 수정 모두) */
 [data-testid="stTextInputRootElement"], [data-testid="stTextAreaRootElement"],
 [data-testid="stSelectbox"] [role="group"], [data-testid="stMultiSelect"] [role="group"],

@@ -149,10 +149,10 @@ def delete_dialog(trip_id: str):
     if trip is None:
         st.rerun()
     if trip["owner"] == user_id:
-        st.markdown(f"**'{esc(trip['title'])}'** 파일을 삭제할까요?")
+        st.markdown(f"**'{esc(trip['title'])}'** 파일을 삭제하시겠습니까?")
         st.caption("사진 · 소감 · 찜한 리스트가 모두 지워지고, 공유한 친구의 사물함에서도 사라져요. 되돌릴 수 없어요.")
     else:
-        st.markdown(f"**'{esc(user_store.auto_title(trip['conditions']))}'** 를 내 사물함에서 뺄까요?")
+        st.markdown(f"**'{esc(user_store.auto_title(trip['conditions']))}'** 파일을 내 사물함에서 삭제하시겠습니까?")
         st.caption(f"{trip['owner']}님의 원래 파일은 그대로 남아요. 다시 보려면 {trip['owner']}님이 다시 공유해야 해요.")
 
     cancel_col, ok_col = st.columns(2)
