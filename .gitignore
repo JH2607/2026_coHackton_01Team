@@ -2,3 +2,5 @@
 .env
 __pycache__/
 .streamlit/secrets.toml
+# 회원·찜·공유 데이터 (각자 컴퓨터에만 저장)
+user_data/

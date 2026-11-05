@@ -1,0 +1,7 @@
+# 김밥 테마: 연한 노랑 배경 + 김(진한 초록검정) 포인트
+[theme]
+base = "light"
+primaryColor = "#1F2B24"
+backgroundColor = "#FFF6D8"
+secondaryBackgroundColor = "#FFFDF5"
+textColor = "#1F2B24"
