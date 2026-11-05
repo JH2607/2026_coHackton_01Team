@@ -4,7 +4,8 @@
   ① 첫 화면 (로그인 전)   : 소개 문구 + 로고 + 기능 소개, 오른쪽 위 [로그인] [회원가입]
   ②③ 회원가입 / 로그인   : 첫 화면 위에 작은 팝업으로 뜸 (st.dialog)
   ④ 메인 화면 (로그인 후) : "이번 여행 기획" 폼 (목적지 · 날짜 · 꼭 체험해 보고 싶은 것) → [확인]
-  ⑤ [확인] 후             : 추천 내용 카드 + 동행에게 공유, 여행은 사물함에 자동 저장
+  ⑤ [확인] 후             : 추천 내용 카드 (하트로 찜) + 동행에게 공유
+                            맨 아래 [사물함에 저장]을 눌러야 사물함에 들어감 (공유 버튼을 눌러도 자동 저장)
   사물함                  : 예전 여행 기획 카드 → [열어 보기] → 사진 · 이름 · 소감 · 공유 · 찜한 리스트 · 추천
 
 관련 파일
@@ -67,13 +68,26 @@ def cost_html(place: dict) -> str:
     return f'<span class="gb-cost">1인 비용 · 약 {int(price):,}원</span>'
 
 
-def one_line(place: dict) -> str:
-    """한 줄 소개: 태그 3개 + 머무는 시간."""
-    tags = [t for t in place["tags"].split("|") if t][:3]
-    text = " ".join(f"#{t}" for t in tags)
-    if place["duration_min"].strip():
-        text += f" · 약 {place['duration_min']}분"
-    return text
+COMMON_TAGS = {"사진", "실내", "야외"}  # 어느 장소에나 붙는 태그 → 흐리게, 뒤쪽에
+
+
+def tags_html(place: dict) -> str:
+    """특징 태그 전부를 작은 표시로. 그 장소만의 특징은 진하게 앞에, 흔한 태그는 흐리게 뒤에."""
+    tags = [t.strip() for t in place["tags"].split("|") if t.strip()]
+    is_common = [t in COMMON_TAGS or t == place["category"] for t in tags]
+    special = [t for t, c in zip(tags, is_common) if not c]
+    common = [t for t, c in zip(tags, is_common) if c]
+    chips = "".join(f'<span class="gb-tag">#{esc(t)}</span>' for t in special)
+    chips += "".join(f'<span class="gb-tag common">#{esc(t)}</span>' for t in common)
+    return f'<div class="gb-tags">{chips}</div>'
+
+
+def time_html(place: dict) -> str:
+    minutes = place["duration_min"].strip()
+    if not minutes:
+        return ""
+    return (f'<span class="gb-time" title="그곳에서 보내는 예상 시간 (추정값)">'
+            f'⏱ 머무는 시간 약 {esc(minutes)}분</span>')
 
 
 def chips_html(conditions: dict) -> str:
@@ -217,7 +231,7 @@ def render_landing():
     )
     render_feature(
         "기능 4 · 예전 여행 기획 사물함",
-        "[확인]을 누른 여행은 사물함에 자동으로 저장돼요. "
+        "계획을 다 세우고 [사물함에 저장]을 누르면 찜한 곳과 함께 사물함에 보관돼요. "
         "여행 이름을 바꾸고, 사진과 소감을 남겨 두었다가 언제든 다시 꺼내 볼 수 있어요.",
         PREVIEW_LOCKER, preview_left=False,
     )
@@ -291,15 +305,64 @@ def render_trip_form(user_id: str, regions: list[str], categories: list[str]):
             "end_date": end.isoformat(),
             "categories": picked,             # 비어 있으면 전체
         }
-        st.session_state["current_trip_id"] = user_store.save_trip(user_id, conditions)
+        start_plan(user_id, conditions)
         st.session_state["shown_main"] = PAGE_SIZE
-        st.toast("이번 여행을 사물함에 저장했어요.")
+
+
+# =====================================================================
+# 이번 여행 계획 (session_state["plan"])
+#   [확인]  → 추천만 보여 줌. 아직 사물함에 없음 (trip_id = None). 하트는 여기 임시로 기억.
+#   [사물함에 저장] 또는 공유 버튼 → 사물함에 저장 (trip_id 생김). 그다음 하트는 바로 파일에 저장.
+# =====================================================================
+def plan_hearts(plan: dict, user_id: str) -> list[str]:
+    if plan["trip_id"]:
+        trip = user_store.get_trip(plan["trip_id"])
+        return list(trip["favorites"].get(user_id, [])) if trip else []
+    return list(plan["favorites"])
+
+
+def start_plan(user_id: str, conditions: dict):
+    hearts = []
+    old = st.session_state.get("plan")
+    if old and old["conditions"]["region"] == conditions["region"]:
+        hearts = plan_hearts(old, user_id)  # 같은 목적지에서 조건만 바꾸면 눌러 둔 하트는 그대로
+    saved = user_store.find_my_trip(user_id, conditions)
+    if saved:
+        hearts += [p for p in saved["favorites"].get(user_id, []) if p not in hearts]
+
+    already_saved = (saved is not None and saved["conditions"] == conditions
+                     and set(hearts) <= set(saved["favorites"].get(user_id, [])))
+    st.session_state["plan"] = {
+        "conditions": conditions,
+        "favorites": hearts,
+        "trip_id": saved["trip_id"] if already_saved else None,
+    }
+
+
+def toggle_plan_heart(place_id: str):
+    hearts = st.session_state["plan"]["favorites"]
+    if place_id in hearts:
+        hearts.remove(place_id)
+    else:
+        hearts.append(place_id)
+
+
+def save_plan(user_id: str) -> str:
+    plan = st.session_state["plan"]
+    plan["trip_id"] = user_store.save_trip(user_id, plan["conditions"], plan["favorites"])
+    return plan["trip_id"]
+
+
+def on_save_click(user_id: str):
+    save_plan(user_id)
+    flash("이번 여행을 사물함에 저장했어요.")
 
 
 # =====================================================================
 # 추천 카드 (메인 화면과 여행 자세히 보기에서 같이 씀)
 # =====================================================================
-def render_place_card(place: dict, trip_id: str, user_id: str, liked: bool, key_prefix: str):
+def render_place_card(place: dict, liked: bool, key_prefix: str, on_heart, heart_args: tuple):
+    """on_heart(*heart_args, place_id): 하트를 눌렀을 때 부를 함수 (저장 전/후에 따라 다름)."""
     with st.container(border=True):
         url = esc(place["source_url"])
         img = ui_style.category_image_uri(place["category"])
@@ -317,30 +380,31 @@ def render_place_card(place: dict, trip_id: str, user_id: str, liked: bool, key_
             "❤️" if liked else "♡",
             key=f"{key_prefix}_heart_{place['place_id']}",
             help="찜 취소" if liked else "찜하기",
-            on_click=user_store.toggle_favorite,
-            args=(trip_id, user_id, place["place_id"]),
+            on_click=on_heart,
+            args=(*heart_args, place["place_id"]),
         )
-        st.markdown(f'<div class="gb-card-line">{esc(one_line(place))}</div>{cost_html(place)}',
-                    unsafe_allow_html=True)
+        st.markdown(
+            f'{tags_html(place)}<div class="gb-card-bottom">{cost_html(place)}{time_html(place)}</div>',
+            unsafe_allow_html=True,
+        )
 
 
 def show_more(shown_key: str):
     st.session_state[shown_key] = st.session_state.get(shown_key, PAGE_SIZE) + PAGE_SIZE
 
 
-def render_recommendations(trip: dict, user_id: str, key_prefix: str):
-    places = get_recommendations(trip["conditions"])
+def render_recommendations(conditions: dict, liked: set, key_prefix: str, on_heart, heart_args: tuple):
+    places = get_recommendations(conditions)
     if not places:
         st.info("조건에 맞는 장소가 없어요. 꼭 체험해 보고 싶은 것을 바꿔 보세요.")
         return
     shown_key = f"shown_{key_prefix}"
     shown = places[: st.session_state.get(shown_key, PAGE_SIZE)]
-    my_favorites = set(trip["favorites"].get(user_id, []))
 
     cols = st.columns(2, gap="medium")
     for i, place in enumerate(shown):
         with cols[i % 2]:
-            render_place_card(place, trip["trip_id"], user_id, place["place_id"] in my_favorites, key_prefix)
+            render_place_card(place, place["place_id"] in liked, key_prefix, on_heart, heart_args)
 
     if len(shown) < len(places):
         st.button(f"더 보기 ({len(shown)}/{len(places)})", key=f"more_{key_prefix}",
@@ -356,19 +420,42 @@ def render_share_button(trip_id: str, key: str):
 # ⑤ 이번 여행 추천 결과
 # =====================================================================
 def render_results(user_id: str):
-    trip_id = st.session_state.get("current_trip_id")
-    trip = user_store.get_trip(trip_id) if trip_id else None
-    if trip is None:
+    plan = st.session_state.get("plan")
+    if plan is None:
         return
+    if plan["trip_id"] and user_store.get_trip(plan["trip_id"]) is None:
+        plan["trip_id"] = None  # 저장했던 파일이 없어졌으면 다시 '저장 전'으로
 
     st.write("")
     head = st.columns([6, 2.2, 0.8], vertical_alignment="center")
     head[0].markdown('<div class="gb-section-title">추천 내용</div>', unsafe_allow_html=True)
     head[1].markdown('<div class="gb-share-label">Share the file with</div>', unsafe_allow_html=True)
     with head[2]:
-        render_share_button(trip_id, key="share_main")
-    st.markdown(chips_html(trip["conditions"]), unsafe_allow_html=True)
-    render_recommendations(trip, user_id, key_prefix="main")
+        if st.button(":material/group:", key="share_main",
+                     help="동행에게 공유하기 (저장 전이면 사물함에 함께 저장돼요)"):
+            if not plan["trip_id"]:
+                save_plan(user_id)  # 공유하려면 파일이 있어야 하므로 자동으로 저장
+                st.toast("공유하려고 이번 여행을 사물함에 먼저 저장했어요.")
+            share_dialog(plan["trip_id"])
+
+    st.markdown(chips_html(plan["conditions"]), unsafe_allow_html=True)
+    if plan["trip_id"]:
+        on_heart, heart_args = user_store.toggle_favorite, (plan["trip_id"], user_id)
+    else:
+        on_heart, heart_args = toggle_plan_heart, ()
+    render_recommendations(plan["conditions"], set(plan_hearts(plan, user_id)), "main", on_heart, heart_args)
+
+    # 계획이 끝나면 맨 아래에서 저장
+    st.write("")
+    if plan["trip_id"]:
+        st.button("✓ 사물함에 저장됨", key="saved_main", disabled=True, use_container_width=True)
+        st.markdown('<div class="gb-save-note">이제부터 누르는 하트는 바로 저장돼요. '
+                    '아래 사물함에서 사진과 소감도 남겨 보세요.</div>', unsafe_allow_html=True)
+    else:
+        st.button("사물함에 저장", key="save_main", type="primary", use_container_width=True,
+                  on_click=on_save_click, args=(user_id,))
+        st.markdown('<div class="gb-save-note">아직 저장하지 않았어요. 계획을 다 세웠으면 '
+                    '[사물함에 저장]을 눌러 주세요. 찜한 곳도 함께 저장돼요.</div>', unsafe_allow_html=True)
 
 
 # =====================================================================
@@ -415,11 +502,11 @@ def render_file_card(trip: dict, user_id: str):
 def render_locker(user_id: str):
     st.markdown('<div class="gb-double-line"></div>', unsafe_allow_html=True)
     st.markdown('<div class="gb-locker-title">예전 여행 기획 사물함</div>'
-                '<div class="gb-locker-sub">[확인]을 누른 여행이 여기에 자동으로 저장돼요.</div>',
+                '<div class="gb-locker-sub">[사물함에 저장]을 누른 여행과 공유받은 여행이 여기에 모여요.</div>',
                 unsafe_allow_html=True)
     trips = user_store.list_trips_for(user_id)
     if not trips:
-        st.info("아직 저장된 여행이 없어요. 위에서 이번 여행을 기획하고 [확인]을 눌러 보세요.")
+        st.info("아직 저장된 여행이 없어요. 위에서 이번 여행을 기획한 뒤 맨 아래 [사물함에 저장]을 눌러 보세요.")
         return
     cols = st.columns(3, gap="large")
     for i, trip in enumerate(trips):
@@ -488,7 +575,7 @@ def render_trip_detail(user_id: str, trip_id: str, places_by_id: dict):
         return
 
     # 주의: 카드 안에 이미 칸(columns)이 있어서, 여기서 한 번 더 칸으로 감싸면 Streamlit 중첩 제한에 걸림
-    st.button("← 사물함으로 돌아가기", on_click=close_trip)
+    st.button("← 사물함으로 돌아가기", key="back_to_locker", on_click=close_trip)
     if trip["owner"] == user_id:
         render_owner_info(trip, user_id)
     else:
@@ -499,7 +586,8 @@ def render_trip_detail(user_id: str, trip_id: str, places_by_id: dict):
     render_favorites(trip, user_id, places_by_id)
     st.markdown('<div class="gb-subtitle">추천 결과</div>', unsafe_allow_html=True)
     st.markdown(chips_html(trip["conditions"]), unsafe_allow_html=True)
-    render_recommendations(trip, user_id, key_prefix="detail")
+    render_recommendations(trip["conditions"], set(trip["favorites"].get(user_id, [])), "detail",
+                           user_store.toggle_favorite, (trip["trip_id"], user_id))
 
 
 # =====================================================================

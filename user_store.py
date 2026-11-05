@@ -110,14 +110,30 @@ def _find(trips: list, trip_id: str) -> dict | None:
     return next((t for t in trips if t["trip_id"] == trip_id), None)
 
 
-def save_trip(owner: str, conditions: dict) -> str:
-    """[확인]을 누를 때 호출. 같은 목적지·날짜의 여행이 이미 있으면 새로 만들지 않고 그 여행을 갱신한다."""
+def _same_plan(trip: dict, owner: str, conditions: dict) -> bool:
+    same = trip["conditions"]
+    return (trip["owner"] == owner and same["region"] == conditions["region"]
+            and same["start_date"] == conditions["start_date"] and same["end_date"] == conditions["end_date"])
+
+
+def find_my_trip(owner: str, conditions: dict) -> dict | None:
+    """같은 사람 · 같은 목적지 · 같은 날짜로 이미 저장한 여행 (없으면 None)."""
+    return next((t for t in _read(TRIPS_PATH, []) if _same_plan(t, owner, conditions)), None)
+
+
+def save_trip(owner: str, conditions: dict, favorites: list[str] | None = None) -> str:
+    """[사물함에 저장]을 누를 때 호출.
+
+    favorites: 저장하기 전에 눌러 둔 하트(장소 ID 목록). 저장할 때 함께 들어간다.
+    같은 목적지·날짜의 여행이 이미 있으면 새로 만들지 않고 그 여행을 갱신하고, 하트는 합친다.
+    """
+    favorites = list(favorites or [])
     trips = _read(TRIPS_PATH, [])
     for trip in trips:
-        same = trip["conditions"]
-        if (trip["owner"] == owner and same["region"] == conditions["region"]
-                and same["start_date"] == conditions["start_date"] and same["end_date"] == conditions["end_date"]):
+        if _same_plan(trip, owner, conditions):
             trip["conditions"] = conditions
+            mine = trip["favorites"].setdefault(owner, [])
+            mine.extend(p for p in favorites if p not in mine)
             trip["updated_at"] = _now()
             _write(TRIPS_PATH, trips)
             return trip["trip_id"]
@@ -130,7 +146,7 @@ def save_trip(owner: str, conditions: dict) -> str:
         "notes": "",
         "photo": None,
         "conditions": conditions,
-        "favorites": {},
+        "favorites": {owner: favorites} if favorites else {},
         "shared_with": [],
         "created_at": _now(),
         "updated_at": _now(),

@@ -286,6 +286,7 @@ header[data-testid="stHeader"] { background: transparent; }
 .gb-userid {
   border: 2px solid #1F2B24; border-radius: 10px; background: #FFFDF5;
   padding: 6px 12px; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: center;
 }
 .gb-userid b { font-family: 'Jua', sans-serif; font-weight: 400; margin-right: 6px; }
 .gb-avatar {
@@ -316,9 +317,28 @@ header[data-testid="stHeader"] { background: transparent; }
 .gb-card-img a:focus-visible img { outline: 3px solid #F07B2A; outline-offset: 2px; }
 .gb-card-name { font-family: 'Jua', sans-serif; font-size: 1.15rem; line-height: 1.3; }
 .gb-card-name small { font-family: 'Gowun Dodum', sans-serif; font-size: 0.85rem; }
-.gb-card-line { font-size: 0.92rem; color: #3F4A43; }
-.gb-cost { display: inline-block; margin-top: 4px; background: #F6C945; border-radius: 999px; padding: 1px 10px; font-size: 0.88rem; }
+/* 특징 태그: 그 장소만의 특징은 진하게, 흔한 태그(사진·실내·야외)는 흐리게 */
+.gb-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+.gb-tag {
+  font-size: 0.92rem; font-weight: 700; color: #1F2B24; background: #FFFDF5;
+  border: 1.5px solid #1F2B24; border-radius: 8px; padding: 1px 9px;
+}
+.gb-tag.common { font-weight: 400; color: #6B7068; border-color: #CFC6AE; background: transparent; }
+/* 맨 아래 줄: 1인 비용 + 머무는 시간. 카드 테두리와 붙지 않게 아래 여백 */
+.gb-card-bottom { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.gb-cost { display: inline-block; background: #F6C945; border-radius: 999px; padding: 2px 12px; font-size: 0.9rem; }
 .gb-cost.unknown { background: #EFE6CC; }
+.gb-time { display: inline-block; font-size: 0.88rem; color: #3F4A43; }
+.gb-save-note { text-align: center; font-size: 0.92rem; color: #3F4A43; margin-top: 4px; }
+
+/* 사물함으로 돌아가기: 로고와 떨어뜨리고, 노란 버튼으로 눈에 띄게 */
+.st-key-back_to_locker { margin-top: 1.6rem; }
+.st-key-back_to_locker button {
+  background: #F6C945 !important; border: 2px solid #1F2B24 !important; border-radius: 999px !important;
+  box-shadow: 3px 3px 0 #1F2B24; padding: 0.35rem 1.3rem !important;
+}
+.st-key-back_to_locker button p { font-family: 'Jua', sans-serif !important; font-size: 1.15rem !important; }
+.st-key-back_to_locker button:hover { background: #F9DC7A !important; }
 
 /* ---------- 예전 여행 기획 사물함 ---------- */
 .gb-double-line { border-top: 3px solid #1F2B24; border-bottom: 3px solid #1F2B24; height: 6px; margin: 2.6rem 0 1.6rem; }
