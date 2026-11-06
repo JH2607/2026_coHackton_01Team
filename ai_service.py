@@ -218,6 +218,7 @@ def choose_places_from_csv(conditions, candidates):
         response = client.chat.completions.create(
             model=model,
             temperature=0.2,
+            max_tokens=800,
             messages=[
                 {
                     "role": "system",

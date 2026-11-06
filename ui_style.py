@@ -350,6 +350,36 @@ header[data-testid="stHeader"] { background: transparent; }
 .gb-time { display: inline-block; font-size: 0.88rem; color: #3F4A43; }
 .gb-save-note { text-align: center; font-size: 0.92rem; color: #3F4A43; margin-top: 4px; }
 
+
+/* ---------- 김밥 AI 추천 포인트 ---------- */
+.gb-ai-reason {
+    margin-top: 10px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #FFFDF5;
+    border: 1.5px solid #1F2B24;
+}
+
+.gb-ai-reason-badge {
+    display: inline-block;
+    font-family: 'Jua', sans-serif;
+    font-size: 0.85rem;
+    color: #1F2B24;
+    background: #F6C945;
+    border-radius: 8px;
+    padding: 3px 10px;
+    margin-bottom: 8px;
+}
+
+.gb-ai-reason-text {
+    font-family: 'Gowun Dodum', sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #1F2B24;
+    overflow-wrap: anywhere;
+}
+
 /* 사물함으로 돌아가기: 로고와 떨어뜨리고, 노란 버튼으로 눈에 띄게 */
 .st-key-back_to_locker { margin-top: 1.6rem; }
 .st-key-back_to_locker button {

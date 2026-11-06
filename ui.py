@@ -456,7 +456,15 @@ def render_place_card(place: dict, liked: bool, key_prefix: str, on_heart, heart
 
                 # AI 추천 이유 표시
         if place.get("ai_reason"):
-            st.caption("🤖 AI 추천 이유: " + place["ai_reason"])
+                st.markdown(
+                      f"""
+                    <div class="gb-ai-reason">
+                        <div class="gb-ai-reason-badge">AI PICK</div>
+                        <div class="gb-ai-reason-text">{place["ai_reason"]}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+            )
 
 
 def show_more(shown_key: str):
