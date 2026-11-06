@@ -194,6 +194,77 @@ def match_travelers(user_a: Dict[str, Any], user_b: Dict[str, Any]) -> Dict[str,
     except Exception as e:
         logger.error(f"[AI Matching Error]: {e}")
         return _get_fallback_matching()
+
+def choose_places_from_csv(conditions, candidates):
+    """CSV의 실제 장소 중 AI가 추천할 장소를 선정한다."""
+    if not candidates:
+        return []
+
+    if not (os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")):
+        return []
+
+    options = [
+        {
+            "place_id": p["place_id"],
+            "name": p["name"],
+            "category": p["category"],
+            "tags": p["tags"],
+        }
+        for p in candidates[:30]
+    ]
+
+    try:
+        client, model = get_openrouter_client()
+        response = client.chat.completions.create(
+            model=model,
+            temperature=0.2,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "실제 제공된 장소 중에서만 2~4곳을 추천해. "
+                        "사용자 취향에 맞는 장소를 우선 선정해. "
+                        "JSON만 반환해. 형식: "
+                        '{"recommendations":['
+                        '{"place_id":"장소ID","reason":"추천 이유"}]}'
+                        "반드시 제공된 place_id만 사용해."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {"conditions": conditions, "places": options},
+                        ensure_ascii=False
+                    ),
+                },
+            ],
+        )
+
+        result = _parse_llm_json(response.choices[0].message.content or "{}")
+        valid = {p["place_id"] for p in options}
+        selected = []
+        seen = set()
+
+        for item in result.get("recommendations", []):
+            if not isinstance(item, dict):
+                continue
+            pid = item.get("place_id")
+            if pid in valid and pid not in seen:
+                selected.append({
+                    "place_id": pid,
+                    "reason": str(item.get("reason", ""))
+                })
+                seen.add(pid)
+            if len(selected) == 4:
+                break
+
+        return selected
+
+    except Exception:
+        logger.exception("AI 장소 선정 실패")
+        return []
+
+
 # ---------------------------------------------------------
 # 예시 입력 1~3개로 AI 응답 테스트 (직접 실행용 코드)
 # ---------------------------------------------------------

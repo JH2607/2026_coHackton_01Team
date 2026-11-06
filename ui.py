@@ -13,7 +13,7 @@
   ui_style.py   색 · 글꼴 · 로고 · 분류별 그림
   user_store.py 회원 · 여행 사물함 · 찜 · 공유 저장
 """
-
+from ai_service import choose_places_from_csv
 import datetime as dt
 import html
 
@@ -52,12 +52,48 @@ def date_range_text(conditions: dict) -> str:
 # 지금: CSV에서 목적지 · 분류로 거르고, 고른 분류 순서 → 이름 순서로 정렬
 # 나중: AI 함수로 바꾸려면 이 함수의 안쪽만 바꾸면 됨 (입력 conditions dict → 장소 dict 리스트)
 # =====================================================================
+
+@st.cache_data(ttl=1800, show_spinner=False)
 def get_recommendations(conditions: dict) -> list[dict]:
     picked = conditions["categories"]
     order = {category: i for i, category in enumerate(picked)}
-    places = [p for p in get_places_by_region(conditions["region"]) if not picked or p["category"] in order]
-    places.sort(key=lambda p: (order.get(p["category"], 0), p["category"], p["name"]))
-    return places
+
+    # 1. 데이터 담당자가 만든 함수로 실제 장소 조회
+    places = [
+        p for p in get_places_by_region(conditions["region"])
+        if not picked or p["category"] in order
+    ]
+
+    places.sort(
+        key=lambda p: (
+            order.get(p["category"], 0),
+            p["category"],
+            p["name"]
+        )
+    )
+
+    # 2. AI에게 실제 장소 후보 전달
+    recommendations = choose_places_from_csv(conditions, places)
+
+    # 3. AI가 선택한 장소 ID를 실제 CSV 데이터와 연결
+    by_id = {p["place_id"]: p for p in places}
+    selected = []
+    used = set()
+
+    for rec in recommendations:
+        place = by_id.get(rec["place_id"])
+        if place and rec["place_id"] not in used:
+            selected.append({
+                **place,
+                "ai_reason": rec["reason"]
+            })
+            used.add(rec["place_id"])
+
+    # AI 추천 장소를 먼저 보여주고 나머지는 뒤에 표시
+    return selected + [
+        p for p in places if p["place_id"] not in used
+    ]
+
 
 
 def cost_html(place: dict) -> str:
@@ -417,6 +453,10 @@ def render_place_card(place: dict, liked: bool, key_prefix: str, on_heart, heart
             f'{tags_html(place)}<div class="gb-card-bottom">{cost_html(place)}{time_html(place)}</div>',
             unsafe_allow_html=True,
         )
+
+                # AI 추천 이유 표시
+        if place.get("ai_reason"):
+            st.caption("🤖 AI 추천 이유: " + place["ai_reason"])
 
 
 def show_more(shown_key: str):
