@@ -3,8 +3,8 @@
 화면 흐름 (설계도 번호 기준)
   ① 첫 화면 (로그인 전)   : 소개 문구 + 로고 + 기능 소개, 오른쪽 위 [로그인] [회원가입]
   ②③ 회원가입 / 로그인   : 첫 화면 위에 작은 팝업으로 뜸 (st.dialog)
-  ④ 메인 화면 (로그인 후) : "이번 여행 기획" 폼 (목적지 · 날짜 · 꼭 체험해 보고 싶은 것) → [확인]
-  ⑤ [확인] 후             : 추천 내용 카드 (하트로 찜) + 동행에게 공유
+  ④ 메인 화면 (로그인 후) : "이번 여행 기획" 폼 (목적지 · 날짜 · 동행 · 키워드 · 제외 조건) → [확인]
+  ⑤ [확인] 후             : 추천 코스 지도 (map_view.py) + 추천 내용 카드 (하트로 찜) + 동행에게 공유
                             맨 아래 [사물함에 저장]을 눌러야 사물함에 들어감 (공유 버튼을 눌러도 자동 저장)
   사물함                  : 예전 여행 기획 카드 → [열어 보기] → 사진 · 이름 · 소감 · 공유 · 찜한 리스트 · 추천
                             휴지통: 만든 사람은 파일 삭제(친구 사물함에서도 사라짐), 공유받은 사람은 내 사물함에서만 빼기
@@ -12,6 +12,7 @@
 관련 파일
   ui_style.py   색 · 글꼴 · 로고 · 분류별 그림
   user_store.py 회원 · 여행 사물함 · 찜 · 공유 저장
+  map_view.py   추천 코스 지도 (folium 기본 지도 / 카카오 지도)
 """
 from ai_service import choose_places_from_csv
 import datetime as dt
@@ -19,6 +20,7 @@ import html
 
 import streamlit as st
 
+import map_view
 import ui_style
 import user_store
 from data_service import get_places_by_region, load_csv
@@ -27,6 +29,8 @@ st.set_page_config(page_title="김밥 · 여행 추천", page_icon="🧭", layou
 st.markdown(ui_style.CSS, unsafe_allow_html=True)
 
 PAGE_SIZE = 6  # 추천 카드를 한 번에 몇 개씩 보여줄지
+COMPANIONS = ["혼자", "친구", "연인", "가족"]
+EXCLUDE_EXAMPLES = ["술집", "웨이팅 긴 곳", "계단 많은 곳", "야외 장소", "비싼 곳"]  # 직접 입력도 가능
 
 
 def esc(text) -> str:
@@ -37,6 +41,11 @@ def esc(text) -> str:
 def flash(message: str) -> None:
     """화면이 새로고침된 다음에 보여줄 알림을 예약한다."""
     st.session_state["flash"] = message
+
+
+def keywords_of(conditions: dict) -> list[str]:
+    """키워드 목록. 예전에 저장한 여행은 'categories'라는 이름으로 들어 있어서 둘 다 읽는다."""
+    return conditions.get("keywords", conditions.get("categories", []))
 
 
 def date_range_text(conditions: dict) -> str:
@@ -55,7 +64,7 @@ def date_range_text(conditions: dict) -> str:
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def get_recommendations(conditions: dict) -> list[dict]:
-    picked = conditions["categories"]
+    picked = keywords_of(conditions)
     order = {category: i for i, category in enumerate(picked)}
 
     # 1. 데이터 담당자가 만든 함수로 실제 장소 조회
@@ -96,6 +105,18 @@ def get_recommendations(conditions: dict) -> list[dict]:
 
 
 
+# =====================================================================
+# 추천 코스 (통합 연결 지점): 입력 딕셔너리 → AI 추천 → 카카오 검증 → 지도용 '검증 후 목록'
+# 지금: AI 코스 함수 · 카카오 검증 함수가 아직 없어서 map_view의 예시 데이터를 돌려준다.
+# 나중: 아래 두 줄을 팀원 함수로 바꾸면 됨
+#   ai_json  = recommend_course(conditions)          # AI 출력 JSON {"places": [...]}
+#   verified = verify_with_kakao(ai_json, conditions) # 검증 후 목록 [...]
+# 돌려주는 값: (검증 후 목록, 예시 데이터인지 여부)
+# =====================================================================
+def get_course(conditions: dict) -> tuple[list[dict], bool]:
+    return map_view.SAMPLE_COURSE.get(conditions["region"], []), True
+
+
 def cost_html(place: dict) -> str:
     price = place["price_krw"].strip()
     if not price:
@@ -128,8 +149,12 @@ def time_html(place: dict) -> str:
 
 
 def chips_html(conditions: dict) -> str:
-    picked = ", ".join(conditions["categories"]) if conditions["categories"] else "전체 분류"
+    picked = ", ".join(keywords_of(conditions)) or "전체 분류"
     chips = [conditions["region"], date_range_text(conditions), picked]
+    if conditions.get("companion"):
+        chips.append(f"동행: {conditions['companion']}")
+    if conditions.get("exclude"):
+        chips.append("제외: " + ", ".join(conditions["exclude"]))
     return '<div class="gb-chips">' + "".join(f'<span class="gb-chip">{esc(c)}</span>' for c in chips) + "</div>"
 
 
@@ -358,18 +383,25 @@ def render_trip_form(user_id: str, regions: list[str], categories: list[str]):
                               unsafe_allow_html=True)
         end = date_cols[2].date_input("날짜 (끝)", value=today + dt.timedelta(days=2), min_value=today)
 
-        picked = st.multiselect("꼭 체험해 보고 싶은 것", categories, placeholder="선택하지 않으면 전체에서 추천해요")
+        companion = st.radio("동행", COMPANIONS, horizontal=True)
+        picked = st.multiselect("키워드 (꼭 체험해 보고 싶은 것)", categories, select_all=False,
+                                placeholder="선택하지 않으면 전체에서 추천해요")
+        exclude = st.multiselect("제외 조건", EXCLUDE_EXAMPLES, accept_new_options=True, select_all=False,
+                                 placeholder="빼고 싶은 것을 고르거나 직접 입력하세요 (없으면 비워 두기)")
         submitted = st.form_submit_button("확인", type="primary", use_container_width=True)
 
     if submitted:
         if end < start:
             st.warning("끝나는 날짜가 시작 날짜보다 빠를 수 없어요.")
             return
+        # 팀 데이터 형식 초안 1) 입력 딕셔너리
         conditions = {
             "region": region,
             "start_date": start.isoformat(),  # 예: "2026-11-14"
             "end_date": end.isoformat(),
-            "categories": picked,             # 비어 있으면 전체
+            "companion": companion,           # 혼자 / 친구 / 연인 / 가족
+            "keywords": picked,               # 비어 있으면 전체
+            "exclude": [e.strip() for e in exclude if e.strip()],  # 없으면 []
         }
         start_plan(user_id, conditions)
         st.session_state["shown_main"] = PAGE_SIZE
@@ -522,6 +554,16 @@ def render_results(user_id: str):
             share_dialog(plan["trip_id"])
 
     st.markdown(chips_html(plan["conditions"]), unsafe_allow_html=True)
+
+    # 추천 코스 지도
+    course, is_sample = get_course(plan["conditions"])
+    badge = '<span class="gb-sample-badge">예시 데이터</span>' if is_sample else ""
+    st.markdown(f'<div class="gb-sub-title">추천 코스 지도 {badge}</div>', unsafe_allow_html=True)
+    map_view.render_course(course, key="main")
+    with st.expander("입력 딕셔너리 보기 (개발 확인용)"):
+        st.json(plan["conditions"])
+
+    st.markdown('<div class="gb-sub-title">추천 장소</div>', unsafe_allow_html=True)
     if plan["trip_id"]:
         on_heart, heart_args = user_store.toggle_favorite, (plan["trip_id"], user_id)
     else:

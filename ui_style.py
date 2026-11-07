@@ -328,6 +328,20 @@ header[data-testid="stHeader"] { background: transparent; }
 .gb-section-title { display: flex; align-items: center; gap: 12px; font-family: 'Jua', sans-serif; font-size: 1.8rem; }
 .gb-section-title::after { content: ""; flex: 1; height: 3px; background: #1F2B24; border-radius: 2px; }
 .gb-share-label { text-align: right; font-size: 0.95rem; padding-top: 0.55rem; }
+/* 추천 코스 지도 (map_view.py) */
+.gb-sub-title { font-family: 'Jua', sans-serif; font-size: 1.35rem; margin: 0.6rem 0 0.4rem; display: flex; align-items: center; gap: 10px; }
+.gb-sample-badge { font-family: 'Gowun Dodum', sans-serif; font-size: 0.8rem; background: #EFE6CC; border: 1px dashed #1F2B24; border-radius: 999px; padding: 1px 10px; }
+.gb-course-list { display: flex; flex-direction: column; gap: 10px; }
+.gb-course-row { display: flex; gap: 12px; align-items: flex-start; background: #FFFDF5; border: 1.5px solid #1F2B24; border-radius: 12px; padding: 10px 12px; }
+.gb-course-num { flex: none; width: 30px; height: 30px; border-radius: 50%; background: #F6C945; border: 2.5px solid #1F2B24; box-shadow: 2px 2px 0 #1F2B24; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+.gb-course-name { font-weight: 700; font-size: 1.02rem; }
+.gb-course-name a { color: #1F2B24; }
+.gb-course-cat { font-weight: 400; font-size: 0.82rem; color: #6B7068; }
+.gb-course-addr { font-size: 0.85rem; color: #3F4A43; }
+.gb-course-reason { font-size: 0.88rem; color: #3F4A43; margin-top: 2px; }
+.gb-course-note { font-size: 0.85rem; color: #6B7068; margin: 4px 0 8px; }
+/* 동행 선택 (가로 라디오) 글자 크기 */
+[data-testid="stRadio"] label p { font-size: 1.05rem; }
 .gb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0.3rem 0 1rem; }
 .gb-chip { background: #FFFDF5; border: 1.5px solid #1F2B24; border-radius: 999px; padding: 2px 12px; font-size: 0.9rem; }
 
