@@ -1,85 +1,63 @@
 """
 5번: AI 추천 장소 검증 테스트 및 보고서용 통계 생성 스크립트 (test_report.py)
-역할: 다양한 지역/조건 7개에 대해 카카오 API 검증을 수행하고, 보고서용 표를 자동 출력합니다.
+역할: 3번 AI 추천과 4번 카카오 API 검증을 결합하여, 입력 7개에 대한 검증 통계 표를 자동 생성합니다.
 """
 
-import json
 from kakao_verifier import verify_places
+from ai_service import generate_travel_recommendation
 
 # ---------------------------------------------------------
-# 1. 테스트할 7가지 조건과 추천 장소 데이터
-# (※ 추후 3번 팀원이 완성한 AI 함수가 있으면 바로 교체 가능하도록 설계됨)
+# 1. 테스트할 7가지 사용자 여행 조건 (입력 시나리오)
 # ---------------------------------------------------------
 TEST_SCENARIOS = [
     {
         "id": 1,
         "region": "성수",
         "theme": "오후 감성 카페 & 전시 투어",
-        "places": [
-            {"name": "대림창고", "category": "카페"},
-            {"name": "어니언 성수", "category": "카페"},
-            {"name": "성수연방", "category": "복합문화공간"},
-            {"name": "성수동유령가짜팝업", "category": "팝업스토어"}  # 의도적 가짜 장소
-        ]
+        "max_price": 25000,
+        "categories": ["카페", "전시", "팝업스토어"]
     },
     {
         "id": 2,
         "region": "홍대",
         "theme": "저녁 가성비 맛집 & 소품샵",
-        "places": [
-            {"name": "테일러커피 서교점", "category": "카페"},
-            {"name": "카카오프렌즈 홍대플래그십스토어", "category": "소품샵"},
-            {"name": "연남동 존재하지않는식당", "category": "음식점"}  # 의도적 가짜 장소
-        ]
+        "max_price": 15000,
+        "categories": ["음식점", "소품샵"]
     },
     {
         "id": 3,
         "region": "을지로",
         "theme": "레트로 힙플레이스 탐방",
-        "places": [
-            {"name": "을지면옥", "category": "음식점"},
-            {"name": "호랑이커피", "category": "카페"},
-            {"name": "만선호프", "category": "음식점"}
-        ]
+        "max_price": 30000,
+        "categories": ["음식점", "카페"]
     },
     {
         "id": 4,
         "region": "강남",
         "theme": "도심 속 힐링 & 북카페",
-        "places": [
-            {"name": "일상비일상의틈", "category": "복합문화공간"},
-            {"name": "스타필드 코엑스몰 별마당도서관", "category": "문화시설"},
-            {"name": "강남역상상속비밀카페", "category": "카페"}  # 의도적 가짜 장소
-        ]
+        "max_price": 20000,
+        "categories": ["카페", "문화시설"]
     },
     {
         "id": 5,
         "region": "종로",
         "theme": "익선동 한옥 골목 투어",
-        "places": [
-            {"name": "청수당", "category": "카페"},
-            {"name": "온천집 익선", "category": "음식점"},
-            {"name": "호텔세느장", "category": "카페"}
-        ]
+        "max_price": 25000,
+        "categories": ["카페", "음식점"]
     },
     {
         "id": 6,
         "region": "연남",
         "theme": "연트럴파크 산책 & 디저트",
-        "places": [
-            {"name": "랜디스도넛 연남점", "category": "디저트"},
-            {"name": "테일러커피 연남점", "category": "카페"}
-        ]
+        "max_price": 18000,
+        "categories": ["카페", "디저트"]
     },
     {
         "id": 7,
         "region": "제주",
         "theme": "애월 오션뷰 카페 & 향토음식",
-        "places": [
-            {"name": "카페 봄날", "category": "카페"},
-            {"name": "돈사돈 본점", "category": "음식점"},
-            {"name": "한라산구름솜사탕카페", "category": "디저트"}  # 의도적 가짜 장소
-        ]
+        "max_price": 35000,
+        "categories": ["카페", "음식점"]
     }
 ]
 
@@ -102,9 +80,20 @@ def run_benchmark_tests():
         test_id = item["id"]
         region = item["region"]
         theme = item["theme"]
-        ai_places = item["places"]
 
-        # 4번 검증 함수 호출 (진짜 카카오 API로 실시간 확인!)
+        # ① [3번 AI 연동] 실시간 추천 장소 생성
+        user_input = {
+            "region": region,
+            "date": "2026-11-14",
+            "start_time": "13:00",
+            "end_time": "17:00",
+            "max_price": item["max_price"],
+            "categories": item["categories"]
+        }
+        ai_res = generate_travel_recommendation(user_input)
+        ai_places = ai_res.get("data", {}).get("places", [])
+
+        # ② [4번 카카오 연동] 카카오 API로 실시간 장소 검증!
         verified, dropped = verify_places(ai_places, region)
 
         ai_cnt = len(ai_places)
