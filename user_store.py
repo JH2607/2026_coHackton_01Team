@@ -131,6 +131,8 @@ def save_trip(owner: str, conditions: dict, favorites: list[str] | None = None) 
     trips = _read(TRIPS_PATH, [])
     for trip in trips:
         if _same_plan(trip, owner, conditions):
+            if trip.get("conditions") != conditions:
+                trip.pop("route_order", None)
             trip["conditions"] = conditions
             mine = trip["favorites"].setdefault(owner, [])
             mine.extend(p for p in favorites if p not in mine)
@@ -249,6 +251,8 @@ def toggle_favorite(trip_id: str, user_id: str, place_id: str) -> None:
         mine.remove(place_id)
     else:
         mine.append(place_id)
+    if user_id == trip["owner"] and set(trip.get("route_order", [])) - set(mine):
+        trip.pop("route_order", None)
     _write(TRIPS_PATH, trips)
 
 
@@ -273,5 +277,20 @@ def share_trip(trip_id: str, from_user: str, to_user: str) -> str | None:
 
     trip["shared_with"].append(to_user)
     trip["updated_at"] = _now()
+    _write(TRIPS_PATH, trips)
+    return None
+
+def set_trip_route(trip_id: str, user_id: str, place_ids: list[str]) -> str | None:
+    trips = _read(TRIPS_PATH, [])
+    trip = _find(trips, trip_id)
+    if trip is None or trip['owner'] != user_id:
+        return '이 동선은 여행을 만든 사람만 저장할 수 있어요.'
+    if not 2 <= len(place_ids) <= 5 or len(set(place_ids)) != len(place_ids):
+        return '동선에 포함된 장소가 올바르지 않아요.'
+    allowed = set(trip.get('favorites', {}).get(user_id, []))
+    if not set(place_ids).issubset(allowed):
+        return '찜한 장소만 동선에 저장할 수 있어요.'
+    trip['route_order'] = list(place_ids)
+    trip['updated_at'] = _now()
     _write(TRIPS_PATH, trips)
     return None

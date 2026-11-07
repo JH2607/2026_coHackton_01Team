@@ -23,6 +23,8 @@ import html
 import streamlit as st
 
 import map_view
+import kakao_service
+import route_service
 import ui_style
 import user_store
 from data_service import get_places_by_region, load_csv
@@ -391,6 +393,7 @@ def fill_form_from_plan(regions: list[str], categories: list[str]):
         "f_end": end,
         "f_companion": c.get("companion") if c.get("companion") in COMPANIONS else COMPANIONS[0],
         "f_keywords": [k for k in keywords_of(c) if k in categories],
+        "f_avoid": c.get("avoid", ""),
     }
     for key, value in values.items():
         if key not in st.session_state:
@@ -415,6 +418,11 @@ def render_trip_form(user_id: str, regions: list[str], categories: list[str]):
         companion = st.radio("동행인", COMPANIONS, horizontal=True, key="f_companion")
         picked = st.multiselect("꼭 체험해 보고 싶은 것", categories, select_all=False, key="f_keywords",
                                 placeholder="선택하지 않으면 전체에서 추천해요")
+        avoid = st.text_input(
+            "피하고 싶은 조건 (선택)",
+            key="f_avoid",
+            placeholder="예: 매운 음식, 붐비는 곳"
+        )                        
         submitted = st.form_submit_button("확인", type="primary", use_container_width=True)
 
     if submitted:
@@ -428,6 +436,7 @@ def render_trip_form(user_id: str, regions: list[str], categories: list[str]):
             "end_date": end.isoformat(),
             "companion": companion,           # 혼자 / 친구 / 연인 / 가족
             "keywords": picked,               # 비어 있으면 전체
+            "avoid": avoid.strip()[:150],
         }
         start_plan(user_id, conditions)
         st.session_state["shown_main"] = PAGE_SIZE
@@ -456,6 +465,7 @@ def start_plan(user_id: str, conditions: dict):
 
     already_saved = (saved is not None and saved["conditions"] == conditions
                      and set(hearts) <= set(saved["favorites"].get(user_id, [])))
+    st.session_state.pop("recommended_route_main", None)                 
     st.session_state["plan"] = {
         "conditions": conditions,
         "favorites": hearts,
@@ -474,6 +484,9 @@ def toggle_plan_heart(place_id: str):
 def save_plan(user_id: str) -> str:
     plan = st.session_state["plan"]
     plan["trip_id"] = user_store.save_trip(user_id, plan["conditions"], plan["favorites"])
+    route = st.session_state.get("recommended_route_main")
+    if route and set(route.get("ordered_ids", [])) == set(plan["favorites"]):
+        user_store.set_trip_route(plan["trip_id"], user_id, route["ordered_ids"])
     return plan["trip_id"]
 
 
@@ -519,14 +532,14 @@ def render_place_card(place: dict, pick_no: int | None, key_prefix: str, on_hear
 
                 # AI 추천 이유 표시
         if place.get("ai_reason"):
-                st.markdown(
-                      f"""
-                    <div class="gb-ai-reason">
-                        <div class="gb-ai-reason-badge">AI PICK</div>
-                        <div class="gb-ai-reason-text">{place["ai_reason"]}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
+            st.markdown(
+            f"""
+            <div class="gb-ai-reason">
+            <div class="gb-ai-reason-badge">AI PICK</div>
+            <div class="gb-ai-reason-text">{esc(place["ai_reason"])}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
             )
 
 
@@ -563,7 +576,102 @@ def render_delete_button(trip_id: str, help_text: str):
     if st.button(":material/delete:", key="delete_trip", help=help_text):
         delete_dialog(trip_id)
 
+def render_route_planner(picks: list[str], places_by_id: dict, region: str):
+    st.markdown('<div class="gb-sub-title">AI 추천 장소로 동선 짜기</div>', unsafe_allow_html=True)
+    st.caption('찜한 장소를 2~5곳 고르면 이동 거리가 짧은 방문 순서를 제안해요. '
+               '방문 순서는 직선거리 기준 근사이며 카카오맵 도보 경로로 실제 이동 정보를 확인해요.')
+    selected = [places_by_id[pid] for pid in picks if pid in places_by_id]
+    if len(selected) < 2:
+        st.info('추천 장소에서 하트(♡)를 2곳 이상 눌러 동선을 만들어 보세요.')
+        return
+    if len(selected) > 5:
+        st.info('동선 추천은 최대 5곳까지 지원해요. 찜을 5곳 이하로 조정해 주세요.')
+        return
+    first_options = {'자동 선택 (첫 장소도 최적화)': None}
+    first_options.update({p['name'] + ' · ' + p['place_id']: p['place_id'] for p in selected})
+    first_label = st.selectbox('첫 방문 장소', list(first_options), key='route_start_main')
 
+    route_key = (tuple(picks), first_options[first_label])
+    previous = st.session_state.get('recommended_route_main')
+    if previous and previous.get('fingerprint') != route_key:
+        previous = None
+
+    if st.button('추천 동선 만들기', key='generate_route_main', type='primary'):
+        if not kakao_service.rest_key() and not all(p.get('latitude') and p.get('longitude') for p in selected):
+            st.warning('현재 장소 CSV에 좌표가 없습니다. 먼저 .env에 KAKAO_REST_API_KEY를 설정해 주세요.')
+            return
+        with st.spinner('장소 위치와 이동 동선을 확인하고 있어요...'):
+            resolved = [kakao_service.resolve_place(p) for p in selected]
+            missing = [p for p in resolved if p['lat'] is None or p['lng'] is None]
+            if missing:
+                st.warning('위치를 확인하지 못한 장소: ' + ', '.join(p['name'] for p in missing)
+                           + '. 장소명·주소를 수정하거나 검증된 좌표를 추가해 주세요.')
+                st.session_state.pop('recommended_route_main', None)
+                return
+            try:
+                result = route_service.recommend_order(resolved, first_options[first_label])
+            except ValueError as exc:
+                st.warning(str(exc))
+                return
+            walking = kakao_service.walking_route(result['ordered'])
+            previous = {
+                'fingerprint': route_key,
+                'ordered_ids': [p['place_id'] for p in result['ordered']],
+                'ordered': result['ordered'],
+                'straight_distance_m': result['straight_distance_m'],
+                'walking': walking,
+            }
+            st.session_state['recommended_route_main'] = previous
+            plan = st.session_state.get('plan')
+            if plan and plan.get('trip_id'):
+                trip = user_store.get_trip(plan['trip_id'])
+                if trip and trip['owner'] == st.session_state.get('user'):
+                    user_store.set_trip_route(plan['trip_id'], st.session_state['user'], previous['ordered_ids'])
+
+    if not previous:
+        return
+    st.markdown(' → '.join(f'**{i}. {esc(p["name"])}**' for i, p in enumerate(previous['ordered'], 1)))
+    walking = previous['walking']
+    if walking.get('status') == 'OK':
+        distance = walking.get('distance_m')
+        duration = walking.get('duration_s')
+        if distance is not None and duration is not None:
+            st.success(f"카카오맵 도보 기준 약 {distance / 1000:.1f}km · {round(duration / 60)}분 (장소 내 체류시간 제외)")
+        url = walking.get('landing_url', '')
+        if isinstance(url, str) and url.startswith('https://map.kakao.com/'):
+            st.link_button('카카오맵에서 실제 도보 경로 확인', url)
+    else:
+        st.info('카카오 도보 경로 확인 전: 현재는 직선거리 합계 '
+                f"약 {previous['straight_distance_m'] / 1000:.1f}km를 기준으로 순서를 추천했어요. "
+                '이 수치는 실제 도보 이동거리나 시간과 다릅니다.')
+        st.caption('카카오 API 상태: ' + str(walking.get('status', '조회 불가')))
+    st.caption('장소 검색 일치는 실제 영업 여부를 보증하지 않습니다. 방문 전 공식 정보도 확인해 주세요.')
+    map_view.render_picks_map(previous['ordered'], region, key='route_main',
+                              route_path=walking.get('path') if walking.get('status') == 'OK' else None,
+                              show_route=True, title_text='추천 방문 순서')
+
+def render_saved_route(trip: dict, places_by_id: dict):
+    ordered_ids = trip.get('route_order', [])
+    if not 2 <= len(ordered_ids) <= 5:
+        return
+    resolved = [kakao_service.resolve_place(places_by_id[pid])
+                for pid in ordered_ids if pid in places_by_id]
+    if len(resolved) != len(ordered_ids):
+        return
+    st.markdown('<div class="gb-subtitle">저장된 추천 동선</div>', unsafe_allow_html=True)
+    st.write(' → '.join(p['name'] for p in resolved))
+    if any(p['lat'] is None for p in resolved):
+        st.info('좌표가 확인되지 않아 저장한 방문 순서만 보여드려요.')
+        return
+    walking = kakao_service.walking_route(resolved)
+    if walking.get('status') == 'OK':
+        st.caption(f"카카오 도보 이동 약 {walking['distance_m'] / 1000:.1f}km · {round(walking['duration_s'] / 60)}분")
+    else:
+        st.caption('직선 연결선으로만 표시합니다. 실제 도보 경로는 API 연결 후 확인할 수 있어요.')
+    map_view.render_picks_map(resolved, trip['conditions']['region'], key='saved_route_' + trip['trip_id'],
+                              route_path=walking.get('path') if walking.get('status') == 'OK' else None,
+                              show_route=True, title_text='저장된 방문 순서')
+                              
 # =====================================================================
 # ⑤ 이번 여행 추천 결과
 # =====================================================================
@@ -590,9 +698,15 @@ def render_results(user_id: str, places_by_id: dict):
 
     # 지도 (왼쪽) + 찜한 리스트 (오른쪽): 하트를 누른 순서대로 번호
     picks = plan_hearts(plan, user_id)
-    map_places = [to_map_place(places_by_id[pid]) for pid in picks if pid in places_by_id]
+    map_places = [
+        kakao_service.resolve_place(places_by_id[pid])
+        if kakao_service.rest_key() and len(picks) <= 5
+        else to_map_place(places_by_id[pid])
+        for pid in picks if pid in places_by_id
+    ]
     st.markdown('<div class="gb-sub-title">여행 지도</div>', unsafe_allow_html=True)
     map_view.render_picks_map(map_places, plan["conditions"]["region"], key="main")
+    render_route_planner(picks, places_by_id, plan["conditions"]["region"])
     with st.expander("입력 딕셔너리 보기 (개발 확인용)"):
         st.json(plan["conditions"])
 
@@ -750,6 +864,7 @@ def render_trip_detail(user_id: str, trip_id: str, places_by_id: dict):
             render_delete_button(trip["trip_id"], help_text="내 사물함에서 빼기")
 
     render_favorites(trip, user_id, places_by_id)
+    render_saved_route(trip, places_by_id)
     st.markdown('<div class="gb-subtitle">추천 결과</div>', unsafe_allow_html=True)
     st.markdown(chips_html(trip["conditions"]), unsafe_allow_html=True)
     render_recommendations(trip["conditions"], list(trip["favorites"].get(user_id, [])), "detail",

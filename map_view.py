@@ -62,7 +62,8 @@ def _has_coords(place: dict) -> bool:
 # ---------------------------------------------------------------------
 # 기본 지도 (folium)
 # ---------------------------------------------------------------------
-def folium_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float]) -> str:
+def folium_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float],
+                    route_path: list[list[float]] | None = None, show_route: bool = False) -> str:
     """numbered: [(찜한 순서 번호, 장소), ...] 중 좌표가 있는 것만."""
     fmap = folium.Map(location=center, zoom_start=15, tiles="OpenStreetMap", control_scale=True)
     for number, place in numbered:
@@ -71,6 +72,13 @@ def folium_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float
             icon=folium.DivIcon(html=_pin_html(number), icon_size=(30, 30), icon_anchor=(15, 15)),
             tooltip=f"{number}. {_esc(place['name'])}",
             popup=folium.Popup(_popup_html(place, number), max_width=260),
+        ).add_to(fmap)
+    if show_route and len(numbered) >= 2:
+        points = route_path if route_path else [[p['lat'], p['lng']] for _, p in numbered]
+        folium.PolyLine(
+            points, color='#E07031', weight=5,
+            dash_array=None if route_path else '10,10',
+            tooltip='카카오 도보 경로' if route_path else '직선 연결선 (실제 도보 경로 아님)',
         ).add_to(fmap)
     if len(numbered) == 1:
         fmap.location = [numbered[0][1]["lat"], numbered[0][1]["lng"]]
@@ -84,11 +92,17 @@ def folium_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float
 # ---------------------------------------------------------------------
 # 카카오 지도 (JavaScript SDK) — 키 · 도메인 등록이 안 되어 있으면 지도 안에 안내 문구를 띄움
 # ---------------------------------------------------------------------
-def kakao_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float], js_key: str) -> str:
+def kakao_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float], js_key: str,
+                   route_path: list[list[float]] | None = None, show_route: bool = False) -> str:
     data = [{"n": n, "name": p["name"], "lat": p["lat"], "lng": p["lng"], "url": p.get("place_url", "")}
             for n, p in numbered]
     data_js = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     key_js = json.dumps(js_key)
+    # 카카오 도보 경로가 없으면 직선 연결선을 점선으로 표시한다.
+    points = route_path if route_path else [[p['lat'], p['lng']] for _, p in numbered]
+    points_js = json.dumps(points)
+    route_js = 'true' if show_route else 'false'
+    precise_js = 'true' if route_path else 'false'
     return f"""
 <div id="map" style="width:100%;height:{MAP_HEIGHT - 10}px;border-radius:14px;border:1.5px solid #1F2B24;"></div>
 <div id="err" style="display:none;font:15px sans-serif;color:#7A2E12;background:#FFF1E6;border:1.5px solid #F07B2A;
@@ -101,6 +115,9 @@ def kakao_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float]
 <script>
   const PLACES = {data_js};
   const CENTER = [{center[0]}, {center[1]}];
+  const ROUTE_POINTS = {points_js};
+  const SHOW_ROUTE = {route_js};
+  const PRECISE = {precise_js};
   let drawn = false;
   function fail(msg) {{ const e = document.getElementById('err'); e.style.display = 'block'; e.textContent = msg; }}
   function draw() {{
@@ -115,6 +132,15 @@ def kakao_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float]
       if (p.url) pin.onclick = () => window.open(p.url, '_blank');
       new kakao.maps.CustomOverlay({{ position: pos, content: pin, yAnchor: 0.5 }}).setMap(map);
     }});
+    if (SHOW_ROUTE && ROUTE_POINTS.length >= 2) {{
+      const polyline = new kakao.maps.Polyline({{
+        path: ROUTE_POINTS.map(point => new kakao.maps.LatLng(point[0], point[1])),
+        strokeWeight: 5, strokeColor: '#E07031', strokeOpacity: 0.9,
+        strokeStyle: PRECISE ? 'solid' : 'shortdash'
+      }});
+      polyline.setMap(map);
+      ROUTE_POINTS.forEach(point => bounds.extend(new kakao.maps.LatLng(point[0], point[1])));
+    }}
     if (PLACES.length === 1) map.setCenter(new kakao.maps.LatLng(PLACES[0].lat, PLACES[0].lng));
     if (PLACES.length > 1) map.setBounds(bounds);
     drawn = true;
@@ -135,8 +161,8 @@ def kakao_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float]
 # ---------------------------------------------------------------------
 # 오른쪽 '찜한 리스트'
 # ---------------------------------------------------------------------
-def picks_list_html(picks: list[dict]) -> str:
-    title = '<div class="gb-picks-title">찜한 리스트</div>'
+def picks_list_html(picks: list[dict], title_text: str = "찜한 리스트") -> str:
+    title = f'<div class="gb-picks-title">{_esc(title_text)}</div>'
     if not picks:
         return title + '<div class="gb-picks-empty">아직 찜한 곳이 없어요. 아래 추천 장소에서 ♡를 누르면 지도에 번호가 생겨요.</div>'
     rows = []
@@ -146,15 +172,22 @@ def picks_list_html(picks: list[dict]) -> str:
             name = f'<a href="{_esc(place["place_url"])}" target="_blank" rel="noopener noreferrer">{name}</a>'
         address = f'<div class="gb-course-addr">{_esc(place["address"])}</div>' if place.get("address") else ""
         no_pin = "" if _has_coords(place) else '<div class="gb-course-nopin">좌표 정보가 없어서 지도에는 아직 표시하지 못했어요.</div>'
+        location_note = (
+            f'<div class="gb-course-note">{_esc(place["location_status"])}</div>'
+            if place.get('location_status') else ''
+        )
         rows.append(
             f'<div class="gb-course-row"><div class="gb-course-num">{number}</div><div>'
             f'<div class="gb-course-name">{name} <span class="gb-course-cat">{_esc(place["category"])}</span></div>'
-            f'{address}{no_pin}</div></div>'
+            f'{address}{no_pin}{location_note}</div></div>'
         )
     return title + '<div class="gb-course-list">' + "".join(rows) + "</div>"
 
 
-def render_picks_map(picks: list[dict], region: str, key: str) -> None:
+def render_picks_map(picks: list[dict], region: str, key: str,
+                     route_path: list[list[float]] | None = None,
+                     show_route: bool = False,
+                     title_text: str = '찜한 리스트') -> None:
     """picks: 찜한 순서대로 정렬된 장소 목록. key: 같은 화면에 지도가 여러 개일 때 구분용."""
     center = REGION_CENTER.get(region, SEOUL_CENTER)
     numbered = [(n, p) for n, p in enumerate(picks, start=1) if _has_coords(p)]
@@ -166,7 +199,10 @@ def render_picks_map(picks: list[dict], region: str, key: str) -> None:
 
     map_col, list_col = st.columns([3, 2], gap="medium")
     with map_col:
-        page = kakao_map_html(numbered, center, kakao_key) if kind == "카카오 지도" else folium_map_html(numbered, center)
+        page = (
+            kakao_map_html(numbered, center, kakao_key, route_path, show_route)
+            if kind == '카카오 지도' else folium_map_html(numbered, center, route_path, show_route)
+        )
         components.html(page, height=MAP_HEIGHT)
     with list_col:
-        st.markdown(picks_list_html(picks), unsafe_allow_html=True)
+        st.markdown(picks_list_html(picks, title_text), unsafe_allow_html=True)

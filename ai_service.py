@@ -224,7 +224,9 @@ def choose_places_from_csv(conditions, candidates):
                     "role": "system",
                     "content": (
                         "실제 제공된 장소 중에서만 2~4곳을 추천해. "
-                        "사용자 취향에 맞는 장소를 우선 선정해. "
+                        "사용자 취향과 동행인, 피하고 싶은 조건(avoid)을 고려해. "
+                        "조건을 확실히 만족하지 못하면 추천에서 제외해. "
+                        "CSV에 없는 영업시간이나 가격 정보는 지어내지 마. "
                         "JSON만 반환해. 형식: "
                         '{"recommendations":['
                         '{"place_id":"장소ID","reason":"추천 이유"}]}'
