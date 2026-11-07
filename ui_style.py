@@ -328,9 +328,20 @@ header[data-testid="stHeader"] { background: transparent; }
 .gb-section-title { display: flex; align-items: center; gap: 12px; font-family: 'Jua', sans-serif; font-size: 1.8rem; }
 .gb-section-title::after { content: ""; flex: 1; height: 3px; background: #1F2B24; border-radius: 2px; }
 .gb-share-label { text-align: right; font-size: 0.95rem; padding-top: 0.55rem; }
-/* 추천 코스 지도 (map_view.py) */
+/* 여행 지도 + 찜한 리스트 (map_view.py) */
 .gb-sub-title { font-family: 'Jua', sans-serif; font-size: 1.35rem; margin: 0.6rem 0 0.4rem; display: flex; align-items: center; gap: 10px; }
-.gb-sample-badge { font-family: 'Gowun Dodum', sans-serif; font-size: 0.8rem; background: #EFE6CC; border: 1px dashed #1F2B24; border-radius: 999px; padding: 1px 10px; }
+.gb-picks-title { font-size: 0.95rem; font-weight: 700; color: #3F4A43; margin-bottom: 8px; }
+.gb-picks-empty { font-size: 0.92rem; color: #6B7068; background: #FFFDF5; border: 1.5px dashed #CFC6AE; border-radius: 12px; padding: 14px; }
+.gb-course-nopin { font-size: 0.8rem; color: #A0522D; margin-top: 2px; }
+
+/* 찜한 카드: 조금 어둡게 + 오른쪽 위에 찜한 순서 번호 */
+[class*="st-key-gbpicked_"] { background-color: #F3E2A3 !important; border: 2px solid #1F2B24 !important; }
+.gb-card-img { position: relative; }
+.gb-pick-no {
+  position: absolute; top: 8px; right: 8px; z-index: 2; min-width: 36px; height: 36px; padding: 0 6px; box-sizing: border-box;
+  border-radius: 999px; background: #F6C945; border: 2.5px solid #1F2B24; box-shadow: 2px 2px 0 #1F2B24;
+  display: flex; align-items: center; justify-content: center; font-family: 'Jua', sans-serif; font-size: 1.15rem; color: #1F2B24;
+}
 .gb-course-list { display: flex; flex-direction: column; gap: 10px; }
 .gb-course-row { display: flex; gap: 12px; align-items: flex-start; background: #FFFDF5; border: 1.5px solid #1F2B24; border-radius: 12px; padding: 10px 12px; }
 .gb-course-num { flex: none; width: 30px; height: 30px; border-radius: 50%; background: #F6C945; border: 2.5px solid #1F2B24; box-shadow: 2px 2px 0 #1F2B24; display: flex; align-items: center; justify-content: center; font-weight: 800; }
