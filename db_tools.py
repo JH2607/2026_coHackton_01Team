@@ -180,7 +180,8 @@ def get_place_detail(place_id: str, *, db_path: str | Path | None = None,
             res=_display(p)
             res.update({k:p.get(k,'') for k in ('latitude','longitude','opening_hours',
                         'verified_at','data_status','duration_min','reviewer','reviewed_at',
-                        'review_note','evidence_source_url','draft_basis')})
+                        'review_note','evidence_source_url','draft_basis',
+                        'kakao_place_name','kakao_address','kakao_place_url','kakao_match_status')})
             return {'found':True,'place':res}
     return {'found':False,'place':None,'message':f'등록되지 않은 place_id: {place_id}'}
 
