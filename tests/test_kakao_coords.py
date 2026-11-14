@@ -190,7 +190,8 @@ class FillScriptTest(Base):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.tmp)
         self.places = self.tmp / 'places.csv'
-        shutil.copy(fill.PLACES_CSV, self.places)
+        # 실제 places.csv는 좌표가 채워진 상태라, 보강 전 원본(fixture)으로 테스트
+        shutil.copy(Path(__file__).with_name('fixture_places.csv'), self.places)
         with self.places.open(encoding='utf-8-sig', newline='') as fp:
             rows = list(csv.DictReader(fp))
         self.rows = {r['place_id']: r for r in rows}
