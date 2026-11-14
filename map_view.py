@@ -161,10 +161,13 @@ def kakao_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float]
 # ---------------------------------------------------------------------
 # 오른쪽 '찜한 리스트'
 # ---------------------------------------------------------------------
-def picks_list_html(picks: list[dict], title_text: str = "찜한 리스트") -> str:
+EMPTY_PICKS_TEXT = "아직 찜한 곳이 없어요. 아래 추천 장소에서 ♡를 누르면 지도에 번호가 생겨요."
+
+
+def picks_list_html(picks: list[dict], title_text: str = "찜한 리스트", empty_text: str = EMPTY_PICKS_TEXT) -> str:
     title = f'<div class="gb-picks-title">{_esc(title_text)}</div>'
     if not picks:
-        return title + '<div class="gb-picks-empty">아직 찜한 곳이 없어요. 아래 추천 장소에서 ♡를 누르면 지도에 번호가 생겨요.</div>'
+        return title + f'<div class="gb-picks-empty">{_esc(empty_text)}</div>'
     rows = []
     for number, place in enumerate(picks, start=1):
         name = _esc(place["name"])
@@ -187,8 +190,11 @@ def picks_list_html(picks: list[dict], title_text: str = "찜한 리스트") -> 
 def render_picks_map(picks: list[dict], region: str, key: str,
                      route_path: list[list[float]] | None = None,
                      show_route: bool = False,
-                     title_text: str = '찜한 리스트') -> None:
-    """picks: 찜한 순서대로 정렬된 장소 목록. key: 같은 화면에 지도가 여러 개일 때 구분용."""
+                     title_text: str = '찜한 리스트',
+                     stacked: bool = False,
+                     empty_text: str = EMPTY_PICKS_TEXT) -> None:
+    """picks: 찜한 순서대로 정렬된 장소 목록. key: 같은 화면에 지도가 여러 개일 때 구분용.
+    stacked=True: 지도 아래에 목록 (좁은 칸에 넣을 때, 예: AI 채팅 화면 오른쪽)."""
     center = REGION_CENTER.get(region, SEOUL_CENTER)
     numbered = [(n, p) for n, p in enumerate(picks, start=1) if _has_coords(p)]
 
@@ -197,12 +203,16 @@ def render_picks_map(picks: list[dict], region: str, key: str,
     if kakao_key:
         kind = st.radio("지도 종류", ["카카오 지도", "기본 지도"], horizontal=True, key=f"map_kind_{key}")
 
+    page = (
+        kakao_map_html(numbered, center, kakao_key, route_path, show_route)
+        if kind == '카카오 지도' else folium_map_html(numbered, center, route_path, show_route)
+    )
+    if stacked:
+        components.html(page, height=MAP_HEIGHT)
+        st.markdown(picks_list_html(picks, title_text, empty_text), unsafe_allow_html=True)
+        return
     map_col, list_col = st.columns([3, 2], gap="medium")
     with map_col:
-        page = (
-            kakao_map_html(numbered, center, kakao_key, route_path, show_route)
-            if kind == '카카오 지도' else folium_map_html(numbered, center, route_path, show_route)
-        )
         components.html(page, height=MAP_HEIGHT)
     with list_col:
-        st.markdown(picks_list_html(picks, title_text), unsafe_allow_html=True)
+        st.markdown(picks_list_html(picks, title_text, empty_text), unsafe_allow_html=True)

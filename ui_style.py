@@ -323,6 +323,29 @@ header[data-testid="stHeader"] { background: transparent; }
 }
 .st-key-logout button:hover { color: #163F87 !important; }
 
+/* 위쪽 큰 탭 (이번 여행 기획 / AI에게 물어보기) + 첫 화면의 [AI에게 물어보기]: 로그인·로그아웃보다 눈에 띄게 */
+[class*="st-key-navon_"] button, [class*="st-key-navoff_"] button, .st-key-landing_ai button {
+  border: 2.5px solid #1F2B24 !important; border-radius: 999px !important; min-height: 3.1rem !important;
+}
+[class*="st-key-navon_"] button p, [class*="st-key-navoff_"] button p, .st-key-landing_ai button p {
+  font-family: 'Jua', sans-serif !important; font-size: 1.3rem !important;
+}
+[class*="st-key-navon_"] button, .st-key-landing_ai button { background: #F6C945 !important; box-shadow: 3px 3px 0 #1F2B24; }
+[class*="st-key-navoff_"] button { background: #FFFDF5 !important; }
+[class*="st-key-navoff_"] button:hover { background: #F9DC7A !important; }
+.st-key-landing_ai button:hover { background: #F9DC7A !important; }
+
+/* AI에게 물어보기 (chat_view.py) */
+.gb-chat-title { font-family: 'Jua', sans-serif; font-size: 1.8rem; margin-top: 0.8rem; }
+.gb-chat-sub { font-size: 1rem; color: #3F4A43; margin-bottom: 0.4rem; }
+.gb-chat-notice { font-size: 0.92rem; background: #FFF1E6; border: 1.5px solid #F07B2A; border-radius: 10px; padding: 8px 12px; margin: 0.3rem 0 0.6rem; }
+.gb-chat-examples-label { font-size: 0.9rem; font-weight: 700; color: #3F4A43; margin-top: 0.4rem; }
+[class*="st-key-chat_example_"] button { border: 1.5px dashed #1F2B24 !important; border-radius: 12px !important; background: #FFFDF5 !important; text-align: left; }
+[class*="st-key-chat_example_"] button p { font-size: 0.95rem !important; }
+.gb-chat-mode { display: inline-block; font-size: 0.8rem; background: #EFE6CC; border: 1px dashed #1F2B24; border-radius: 999px; padding: 1px 10px; margin-bottom: 4px; }
+[data-testid="stChatMessage"] { background: transparent; }
+[data-testid="stColumn"]:has(.st-key-chat_side) { position: sticky; top: 4rem; align-self: flex-start; }
+
 .gb-form-title { font-family: 'Jua', sans-serif; font-size: 1.55rem; margin: -0.2rem 0 0.4rem; }
 
 .gb-section-title { display: flex; align-items: center; gap: 12px; font-family: 'Jua', sans-serif; font-size: 1.8rem; }

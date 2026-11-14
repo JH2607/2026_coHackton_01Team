@@ -22,6 +22,7 @@ import html
 
 import streamlit as st
 
+import chat_view
 import map_view
 import kakao_service
 import route_service
@@ -125,6 +126,14 @@ def to_map_place(place: dict) -> dict:
     }
 
 
+def map_places_for(place_ids: list[str], places_by_id: dict) -> list[dict]:
+    """찜한 장소 ID → 지도용 장소. 카카오 REST 키가 있고 5곳 이하이면 카카오에서 좌표를 찾는다.
+    (여행 지도와 AI 채팅 지도에서 같이 씀)"""
+    use_kakao = bool(kakao_service.rest_key()) and len(place_ids) <= 5
+    return [kakao_service.resolve_place(places_by_id[pid]) if use_kakao else to_map_place(places_by_id[pid])
+            for pid in place_ids if pid in places_by_id]
+
+
 def cost_html(place: dict) -> str:
     price = place["price_krw"].strip()
     if not price:
@@ -193,6 +202,25 @@ def login_dialog():
             st.rerun()  # 페이지 새로고침 → 메인 화면(④)으로
         else:
             st.error("아이디 또는 비밀번호가 맞지 않아요.")
+
+
+@st.dialog("로그인이 필요해요", width="small")
+def login_required_dialog():
+    """로그인 전에 [AI에게 물어보기]를 누르면 뜨는 팝업."""
+    st.markdown("**AI에게 물어보기**는 로그인한 뒤에 사용할 수 있어요.")
+    st.caption("로그인하면 AI가 추천한 장소를 찜해 두고 지도에서 볼 수 있어요.")
+    login_col, signup_col = st.columns(2)
+    if login_col.button("로그인", key="gate_login", use_container_width=True):
+        go_after_gate("login")
+    if signup_col.button("회원가입", key="gate_signup", type="primary", use_container_width=True):
+        go_after_gate("signup")
+
+
+def go_after_gate(dialog_name: str):
+    # 팝업 안에서 다른 팝업을 바로 열 수 없어서, 표시만 해 두고 새로고침 → 첫 화면에서 해당 팝업을 연다
+    st.session_state["next_dialog"] = dialog_name
+    st.session_state["page"] = "chat"  # 로그인하면 바로 AI 채팅 화면으로
+    st.rerun()
 
 
 @st.dialog("본 파일 공유..", width="small")
@@ -292,14 +320,22 @@ def render_feature(title: str, text: str, preview: str, preview_left: bool):
 
 
 def render_landing():
-    top = st.columns([6, 1.2, 1.4], vertical_alignment="center")
+    top = st.columns([5, 2.4, 1.2, 1.4], vertical_alignment="center")
     top[0].markdown(
         '<div class="gb-intro">취향대로 골라 한 줄로 말아 주는 여행 추천 서비스, <b>김밥</b></div>',
         unsafe_allow_html=True,
     )
-    if top[1].button("로그인", use_container_width=True):
+    if top[1].button("AI에게 물어보기", key="landing_ai", icon=":material/forum:", use_container_width=True):
+        login_required_dialog()
+    if top[2].button("로그인", use_container_width=True):
         login_dialog()
-    if top[2].button("회원가입", type="primary", use_container_width=True):
+    if top[3].button("회원가입", type="primary", use_container_width=True):
+        signup_dialog()
+
+    next_dialog = st.session_state.pop("next_dialog", None)  # '로그인이 필요해요' 팝업에서 고른 것
+    if next_dialog == "login":
+        login_dialog()
+    elif next_dialog == "signup":
         signup_dialog()
 
     st.markdown(ui_style.logo_html("big"), unsafe_allow_html=True)
@@ -535,7 +571,7 @@ def render_place_card(place: dict, pick_no: int | None, key_prefix: str, on_hear
             st.markdown(
             f"""
             <div class="gb-ai-reason">
-            <div class="gb-ai-reason-badge">AI PICK</div>
+            <div class="gb-ai-reason-badge">{esc(place.get("reason_badge", "AI PICK"))}</div>
             <div class="gb-ai-reason-text">{esc(place["ai_reason"])}</div>
             </div>
             """,
@@ -698,12 +734,7 @@ def render_results(user_id: str, places_by_id: dict):
 
     # 지도 (왼쪽) + 찜한 리스트 (오른쪽): 하트를 누른 순서대로 번호
     picks = plan_hearts(plan, user_id)
-    map_places = [
-        kakao_service.resolve_place(places_by_id[pid])
-        if kakao_service.rest_key() and len(picks) <= 5
-        else to_map_place(places_by_id[pid])
-        for pid in picks if pid in places_by_id
-    ]
+    map_places = map_places_for(picks, places_by_id)
     st.markdown('<div class="gb-sub-title">여행 지도</div>', unsafe_allow_html=True)
     map_view.render_picks_map(map_places, plan["conditions"]["region"], key="main")
     render_route_planner(picks, places_by_id, plan["conditions"]["region"])
@@ -874,11 +905,35 @@ def render_trip_detail(user_id: str, trip_id: str, places_by_id: dict):
 # =====================================================================
 # 메인 화면 (로그인 후)
 # =====================================================================
+NAV_PAGES = [("plan", "이번 여행 기획", ":material/edit_calendar:"),
+             ("chat", "AI에게 물어보기", ":material/forum:")]
+
+
+def set_page(page: str):
+    st.session_state["page"] = page
+
+
+def render_nav():
+    """머리 부분 아래 큰 탭 두 개. 지금 보고 있는 탭은 노란색 (ui_style.py: st-key-navon_)."""
+    current = st.session_state.get("page", "plan")
+    cols = st.columns([1, 2, 2, 1])
+    for col, (page, label, icon) in zip(cols[1:3], NAV_PAGES):
+        state = "navon" if page == current else "navoff"
+        col.button(label, key=f"{state}_{page}", icon=icon, use_container_width=True,
+                   on_click=set_page, args=(page,))
+
+
 def render_main(user_id: str):
     all_places = load_csv("places.csv")
     places_by_id = {p["place_id"]: p for p in all_places}
 
     render_header(user_id)
+    render_nav()
+    if st.session_state.get("page") == "chat":
+        chat_view.render_chat_page(user_id, places_by_id, render_place_card,
+                                   lambda ids: map_places_for(ids, places_by_id))
+        return
+
     open_id = st.session_state.get("open_trip_id")
     if open_id:
         render_trip_detail(user_id, open_id, places_by_id)
