@@ -94,6 +94,25 @@ class MatchPlaceTest(Base):
         self.assertEqual(r['status'], ks.STATUS_OK)
         self.assertIsNone(r['address_match'])
 
+    def test_kakao_jibun_only_is_not_address_mismatch(self):
+        # 서울숲처럼 카카오에 지번만 있으면 도로명 주소와 비교하지 않는다
+        self.fake(keyword={'서울숲': [doc('서울숲', '', '서울 성동구 성수동1가 678-1')]})
+        r = ks.match_place('서울숲', '성수', '서울특별시 성동구 뚝섬로 273')
+        self.assertEqual(r['status'], ks.STATUS_OK)
+        self.assertIsNone(r['address_match'])
+
+    def test_branch_inside_place_is_not_the_place(self):
+        self.assertLess(ks.name_score('경의선 책거리', 'GS25 경의선책거리점'), ks.NAME_THRESHOLD)
+        self.assertLess(ks.name_score('글로우 성수', '이브닝글로우'), ks.NAME_THRESHOLD)
+
+    def test_street_with_number_gets_representative_point(self):
+        fake = self.fake(address={'서울특별시 성동구 연무장길 1': [
+            {'x': '127.05', 'y': '37.54', 'address_name': '서울 성동구 성수동2가 1', 'road_address': None}]})
+        r = ks.match_place('성수 연무장길', '성수', '서울특별시 성동구 연무장길 1 일대')
+        self.assertEqual(r['status'], ks.STATUS_ADDR_ONLY)
+        self.assertIn('대표 지점', r['note'])
+        self.assertIn(('/v2/local/search/address.json', '서울특별시 성동구 연무장길 1'), fake.calls)
+
     def test_suffix_only_overlap_is_not_a_match(self):
         self.assertLess(ks.name_score('Jincheongyujeom (연남동 한식당)', '한식당'), ks.NAME_THRESHOLD)
 
@@ -120,6 +139,12 @@ class MatchPlaceTest(Base):
     def test_no_key(self):
         with mock.patch.object(ks, 'rest_key', return_value=''):
             self.assertEqual(ks.match_place('서울숲')['status'], ks.STATUS_NO_KEY)
+
+    def test_override_for_renamed_place(self):
+        self.fake(keyword={'소극장산울림': [doc('카페산울림', '서울 마포구 와우산로 157', pid='1'),
+                                       doc('소극장산울림', '서울 마포구 와우산로 157', pid='2')]})
+        r = ks.match_place('산울림 소극장', '홍대', '서울특별시 마포구 와우산로 157', queries=['소극장산울림'])
+        self.assertEqual((r['status'], r['kakao_name']), (ks.STATUS_OK, '소극장산울림'))
 
     def test_override_query(self):
         self.fake(keyword={'진정유전': [doc('진정유전', '서울 마포구 동교로46길 27')]})

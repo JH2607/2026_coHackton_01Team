@@ -96,12 +96,20 @@ def is_vague_address(address: str) -> bool:
     return bool(_VAGUE_ADDRESS.search(address)) or not _address_keys(address)
 
 
+def _road_keys(address: str) -> list[str]:
+    """'서울 성동구 뚝섬로 273' → ['뚝섬로273']"""
+    return list(dict.fromkeys(road + num for road, num in
+                              re.findall(r'(\S+(?:로|길))\s*(\d+(?:-\d+)?)', str(address or ''))))
+
+
+def _jibun_keys(address: str) -> list[str]:
+    """'서울 성동구 성수동2가 289-211' → ['성수동2가289-211']"""
+    return list(dict.fromkeys(dong + num for dong, num in
+                              re.findall(r'(\S+(?:동|가))\s+(\d+(?:-\d+)?)', str(address or ''))))
+
+
 def _address_keys(address: str) -> list[str]:
-    """'서울 성동구 뚝섬로 273' → ['뚝섬로273'], '성수동2가 289-211' → ['성수동2가289-211']."""
-    text = str(address or '')
-    keys = [road + num for road, num in re.findall(r'(\S+(?:로|길))\s*(\d+(?:-\d+)?)', text)]
-    keys += [dong + num for dong, num in re.findall(r'(\S+(?:동|가))\s+(\d+(?:-\d+)?)', text)]
-    return list(dict.fromkeys(keys))
+    return _road_keys(address) + _jibun_keys(address)
 
 
 def _address_base(address: str) -> str:
@@ -134,12 +142,25 @@ def name_aliases(name: str) -> list[str]:
     return [a for a in dict.fromkeys(out) if a]
 
 
+def _contains_match(target: str, candidate: str) -> bool:
+    """포함 관계를 같은 장소로 볼지.
+    O  '서울숲' → '서울숲공원', '대림창고 갤러리 카페' → '대림창고' (앞부분이 같음)
+    X  '글로우' → '이브닝글로우' (뒤쪽 일부만 겹침), '경의선책거리' → 'GS25 경의선책거리점' (그 장소 안의 지점)
+    """
+    if len(target) >= 2 and candidate.startswith(target):
+        return True
+    if len(candidate) >= 3 and target.startswith(candidate):
+        return True
+    if len(target) >= 4 and target in candidate:
+        # 'GS25 경의선책거리점'처럼 다른 상호가 앞에 붙고 '점'으로 끝나면 그 장소 안의 가게
+        return not (candidate.endswith('점') and not target.endswith('점'))
+    return False
+
+
 def name_score(csv_name: str, kakao_name: str) -> float:
     """0~1. 같은 이름이면 1, 포함 관계면 0.9, 나머지는 문자열 유사도.
 
-    포함 관계: 카카오 이름이 CSV 이름을 포함('서울숲' ⊂ '서울숲공원')하거나,
-    CSV 이름이 카카오 이름으로 시작('대림창고 갤러리 카페' ← '대림창고', 3글자 이상)할 때만 인정.
-    ('연남동 한식당' 안의 '한식당'처럼 뒤쪽 일부만 겹치는 경우는 제외)"""
+    포함 관계 기준은 _contains_match 참고."""
     candidate = _norm(kakao_name)
     best = 0.0
     for alias in name_aliases(csv_name):
@@ -148,21 +169,32 @@ def name_score(csv_name: str, kakao_name: str) -> float:
             continue
         if target == candidate:
             return 1.0
-        if (len(target) >= 2 and target in candidate) or \
-                (len(candidate) >= 3 and target.startswith(candidate)):
+        if _contains_match(target, candidate):
             best = max(best, 0.9)
         best = max(best, SequenceMatcher(None, target, candidate).ratio())
     return round(best, 3)
 
 
 def address_match(csv_address: str, doc: dict) -> bool | None:
-    """CSV 주소와 카카오 결과 주소가 같은 번지인지. 주소가 모호하면 None (판단 안 함)."""
+    """CSV 주소와 카카오 결과 주소가 같은 번지인지.
+
+    도로명은 도로명끼리, 지번은 지번끼리만 비교한다. (서울숲처럼 카카오에 지번만 있는 곳을
+    '주소 다름'으로 오판하지 않도록) 비교할 짝이 없거나 CSV 주소가 모호하면 None.
+    """
     if is_vague_address(csv_address):
         return None
-    kakao = [re.sub(r'\s+', '', doc.get(k, '') or '') for k in ('road_address_name', 'address_name')]
-    # '뚝섬로273'이 '뚝섬로2730'에 잘못 걸리지 않도록 뒤에 숫자·하이픈이 오면 불일치
-    return any(re.search(re.escape(key) + r'(?![\d-])', text)
-               for key in _address_keys(csv_address) for text in kakao if text)
+    pairs = [(_road_keys(csv_address), doc.get('road_address_name') or ''),
+             (_jibun_keys(csv_address), doc.get('address_name') or '')]
+    compared = False
+    for keys, kakao in pairs:
+        kakao = re.sub(r'\s+', '', kakao)
+        if not keys or not kakao:
+            continue
+        compared = True
+        # '뚝섬로273'이 '뚝섬로2730'에 잘못 걸리지 않도록 뒤에 숫자·하이픈이 오면 불일치
+        if any(re.search(re.escape(key) + r'(?![\d-])', kakao) for key in keys):
+            return True
+    return False if compared else None
 
 
 def _doc_address(doc: dict) -> str:
@@ -268,16 +300,17 @@ def match_place(name: str, region: str = '', address: str = '', *,
             'note': note, 'candidates': candidates,
         }
 
-    # 장소 검색 실패 → 주소 검색으로 좌표라도 확보 (번지가 있는 주소일 때만)
-    if not is_vague_address(address):
+    # 장소 검색 실패 → 주소 검색으로 좌표라도 확보 (번지가 있는 주소일 때만, '○○ 1 일대'도 포함)
+    if _address_keys(address):
         try:
             doc = _address_search(address)
         except (requests.RequestException, RuntimeError, ValueError) as exc:
             return _empty(STATUS_ERROR, f'주소 검색 실패: {type(exc).__name__}', candidates)
         if doc and _valid_coords(doc.get('y'), doc.get('x')):
             road = (doc.get('road_address') or {}).get('address_name') or doc.get('address_name', '')
-            result = _empty(STATUS_ADDR_ONLY, '카카오 장소 검색에 없음 — CSV 주소 위치만 표시 (폐업·미등록 확인)',
-                            candidates)
+            note = ('거리·구역 장소 — CSV 대표 지점 주소로 좌표 표시' if is_vague_address(address)
+                    else '카카오 장소 검색에 없음 — CSV 주소 위치만 표시 (폐업·미등록 확인)')
+            result = _empty(STATUS_ADDR_ONLY, note, candidates)
             result.update({'lat': float(doc['y']), 'lng': float(doc['x']), 'kakao_address': road})
             return result
 
