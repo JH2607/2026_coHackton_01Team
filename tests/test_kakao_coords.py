@@ -104,6 +104,8 @@ class MatchPlaceTest(Base):
     def test_branch_inside_place_is_not_the_place(self):
         self.assertLess(ks.name_score('경의선 책거리', 'GS25 경의선책거리점'), ks.NAME_THRESHOLD)
         self.assertLess(ks.name_score('글로우 성수', '이브닝글로우'), ks.NAME_THRESHOLD)
+        self.assertLess(ks.name_score('글로우 성수', '글로우이브닝클럽'), ks.NAME_THRESHOLD)
+        self.assertGreaterEqual(ks.name_score('서울숲', '서울숲공원'), ks.NAME_THRESHOLD)
 
     def test_street_with_number_gets_representative_point(self):
         fake = self.fake(address={'서울특별시 성동구 연무장길 1': [

@@ -145,9 +145,10 @@ def name_aliases(name: str) -> list[str]:
 def _contains_match(target: str, candidate: str) -> bool:
     """포함 관계를 같은 장소로 볼지.
     O  '서울숲' → '서울숲공원', '대림창고 갤러리 카페' → '대림창고' (앞부분이 같음)
-    X  '글로우' → '이브닝글로우' (뒤쪽 일부만 겹침), '경의선책거리' → 'GS25 경의선책거리점' (그 장소 안의 지점)
+    X  '글로우' → '이브닝글로우'·'글로우이브닝클럽' (일부만 겹침), '경의선책거리' → 'GS25 경의선책거리점' (그 장소 안의 지점)
     """
-    if len(target) >= 2 and candidate.startswith(target):
+    # 앞부분이 같아도 CSV 이름이 카카오 이름의 절반 이상이어야 인정 ('글로우' → '글로우이브닝클럽' X)
+    if len(target) >= 2 and candidate.startswith(target) and len(target) * 2 >= len(candidate):
         return True
     if len(candidate) >= 3 and target.startswith(candidate):
         return True
