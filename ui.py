@@ -161,8 +161,8 @@ def time_html(place: dict) -> str:
     minutes = place["duration_min"].strip()
     if not minutes:
         return ""
-    return (f'<span class="gb-time" title="그곳에서 보내는 예상 시간 (추정값)">'
-            f'⏱ 머무는 시간 약 {esc(minutes)}분</span>')
+    return (f'<span class="gb-time" title="그곳에서 보내는 예상 시간 (데이터의 추정값)">'
+            f'⏱ 예상 머무는 시간 약 {esc(minutes)}분</span>')
 
 
 def chips_html(conditions: dict) -> str:
@@ -566,16 +566,14 @@ def render_place_card(place: dict, pick_no: int | None, key_prefix: str, on_hear
             unsafe_allow_html=True,
         )
 
-                # AI 추천 이유 표시
+        # AI 추천 이유: [AI PICK] 배지 + 짧은 키워드 한 줄 (길면 … 으로 줄이고, 마우스를 올리면 전체 문장)
         if place.get("ai_reason"):
+            reason = esc(place["ai_reason"])
             st.markdown(
-            f"""
-            <div class="gb-ai-reason">
-            <div class="gb-ai-reason-badge">{esc(place.get("reason_badge", "AI PICK"))}</div>
-            <div class="gb-ai-reason-text">{esc(place["ai_reason"])}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+                f'<div class="gb-ai-line" title="{reason}">'
+                f'<span class="gb-ai-reason-badge">{esc(place.get("reason_badge", "AI PICK"))}</span>'
+                f'<span class="gb-ai-line-text">{reason}</span></div>',
+                unsafe_allow_html=True,
             )
 
 
@@ -738,6 +736,7 @@ def render_results(user_id: str, places_by_id: dict):
     st.markdown('<div class="gb-sub-title">여행 지도</div>', unsafe_allow_html=True)
     map_view.render_picks_map(map_places, plan["conditions"]["region"], key="main")
     render_route_planner(picks, places_by_id, plan["conditions"]["region"])
+    # TODO(제출 전 정리): 개발 확인용 — 최종 정리 때 이 expander 두 줄 삭제
     with st.expander("입력 딕셔너리 보기 (개발 확인용)"):
         st.json(plan["conditions"])
 
