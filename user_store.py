@@ -38,6 +38,8 @@ ID_PATTERN = re.compile(r"^[A-Za-z0-9_]{3,20}$")
 MIN_PASSWORD_LEN = 4
 PHOTO_TYPES = {".png", ".jpg", ".jpeg", ".webp"}
 MAX_PHOTO_BYTES = 5 * 1024 * 1024  # 사진 한 장 5MB까지
+GALLERY_DIR = PHOTO_DIR / "gallery"  # 여행 사진첩 (대표 사진과 별도)
+MAX_GALLERY_PHOTOS = 30              # 여행 하나에 30장까지
 
 
 def _now() -> str:
@@ -229,6 +231,8 @@ def delete_trip(trip_id: str, user_id: str) -> str | None:
     if trip["owner"] == user_id:
         if trip["photo"]:
             (PHOTO_DIR / trip["photo"]).unlink(missing_ok=True)
+        for item in trip.get("gallery", []):  # 여행 사진첩도 같이 삭제
+            (GALLERY_DIR / item["file"]).unlink(missing_ok=True)
         trips.remove(trip)
     elif user_id in trip["shared_with"]:
         trip["shared_with"].remove(user_id)
@@ -317,3 +321,59 @@ def clear_ai_picks(user_id: str) -> None:
     picks = _read(AI_PICKS_PATH, {})
     if picks.pop(user_id, None) is not None:
         _write(AI_PICKS_PATH, picks)
+
+
+# ---------------------------------------------------------------------
+# 여행 사진첩 — 여행에서 찍은 사진 여러 장 (대표 사진과 별도)
+#   만든 사람만 올리고 지울 수 있고, 공유받은 친구는 보기만 한다.
+#   trip["gallery"] = [{"file": "t_1a2b3c4d_9f8e7d6c.jpg", "uploaded_at": "..."}, ...]  (올린 순서)
+# ---------------------------------------------------------------------
+def gallery_paths(trip: dict) -> list[tuple[str, Path]]:
+    """[(파일 이름, 경로)] — 실제로 파일이 있는 것만."""
+    items = [(g["file"], GALLERY_DIR / g["file"]) for g in trip.get("gallery", [])]
+    return [(name, path) for name, path in items if path.exists()]
+
+
+def add_gallery_photos(trip_id: str, user_id: str, files: list[tuple[str, bytes]]) -> tuple[int, list[str]]:
+    """files: [(원래 파일 이름, 내용)]. 돌려주는 값: (올린 장수, 못 올린 이유 목록)."""
+    trips = _read(TRIPS_PATH, [])
+    trip = _find(trips, trip_id)
+    if trip is None or trip["owner"] != user_id:
+        return 0, ["사진은 여행을 만든 사람만 올릴 수 있어요."]
+
+    gallery = trip.setdefault("gallery", [])
+    added, problems = 0, []
+    GALLERY_DIR.mkdir(parents=True, exist_ok=True)
+    for filename, data in files:
+        ext = Path(filename).suffix.lower()
+        if ext not in PHOTO_TYPES:
+            problems.append(f"{filename}: png, jpg, webp 파일만 올릴 수 있어요.")
+        elif len(data) > MAX_PHOTO_BYTES:
+            problems.append(f"{filename}: 5MB 이하만 올릴 수 있어요.")
+        elif len(gallery) >= MAX_GALLERY_PHOTOS:
+            problems.append(f"{filename}: 여행 하나에 사진은 {MAX_GALLERY_PHOTOS}장까지예요.")
+        else:
+            name = f"{trip_id}_{secrets.token_hex(4)}{ext}"
+            (GALLERY_DIR / name).write_bytes(data)
+            gallery.append({"file": name, "uploaded_at": _now()})
+            added += 1
+    if added:
+        trip["updated_at"] = _now()
+        _write(TRIPS_PATH, trips)
+    return added, problems
+
+
+def delete_gallery_photo(trip_id: str, user_id: str, filename: str) -> str | None:
+    trips = _read(TRIPS_PATH, [])
+    trip = _find(trips, trip_id)
+    if trip is None or trip["owner"] != user_id:
+        return "사진은 여행을 만든 사람만 지울 수 있어요."
+    gallery = trip.get("gallery", [])
+    item = next((g for g in gallery if g["file"] == filename), None)
+    if item is None:
+        return "이미 지워진 사진이에요."
+    gallery.remove(item)
+    (GALLERY_DIR / filename).unlink(missing_ok=True)
+    trip["updated_at"] = _now()
+    _write(TRIPS_PATH, trips)
+    return None

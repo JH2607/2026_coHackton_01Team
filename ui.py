@@ -818,7 +818,8 @@ def render_locker(user_id: str):
 
 # =====================================================================
 # 사물함 → 여행 자세히 보기
-# 순서: 사진 → 여행 이름 → 나의 소감 → 공유 → 찜한 리스트 → 추천 결과
+# 순서: 대표 사진 → 여행 이름 → 나의 소감 → 공유 → 여행 사진(사진첩) → 찜한 리스트 → 추천 결과
+# 위쪽 탭(이번 여행 기획 / AI에게 물어보기)은 이 화면에서는 숨김
 # =====================================================================
 def render_owner_info(trip: dict, user_id: str):
     st.markdown(f'<div class="gb-detail-photo"><img src="{trip_image_uri(trip, user_id)}" alt="여행 사진"></div>',
@@ -828,7 +829,8 @@ def render_owner_info(trip: dict, user_id: str):
         title = st.text_input("여행 이름", value=trip["title"], max_chars=40)
         notes = st.text_area("나의 소감", value=trip["notes"], max_chars=1000,
                              placeholder="예) 해피 모먼트: 비가 와서 들어간 카페가 최고였다!")
-        photo = st.file_uploader("사진 바꾸기 (png · jpg · webp, 5MB 이하)", type=["png", "jpg", "jpeg", "webp"])
+        photo = st.file_uploader("대표 사진 바꾸기 (png · jpg · webp, 5MB 이하)", type=["png", "jpg", "jpeg", "webp"],
+                                 max_upload_size=5)
         saved = st.form_submit_button("저장", type="primary")
     if saved:
         error = user_store.update_trip_info(trip["trip_id"], user_id, title, notes)
@@ -853,6 +855,52 @@ def render_owner_info(trip: dict, user_id: str):
         render_share_button(trip["trip_id"], key="share_detail")
     with right:
         render_delete_button(trip["trip_id"], help_text="이 여행 파일 삭제")
+
+
+def delete_photo_click(trip_id: str, user_id: str, filename: str):
+    flash(user_store.delete_gallery_photo(trip_id, user_id, filename) or "사진을 지웠어요.")
+
+
+def render_gallery(trip: dict, user_id: str):
+    """여행 사진첩: 만든 사람은 여러 장 올리고 지울 수 있고, 공유받은 친구는 보기만 한다."""
+    is_owner = trip["owner"] == user_id
+    title = st.empty()  # 올린 뒤의 장수를 보여 주려고 제목은 나중에 채움
+
+    if is_owner:
+        with st.form(f"gallery_{trip['trip_id']}", clear_on_submit=True):
+            files = st.file_uploader(
+                f"이번 여행에서 찍은 사진 올리기 (여러 장 가능 · png · jpg · webp · 한 장 5MB 이하 · "
+                f"최대 {user_store.MAX_GALLERY_PHOTOS}장)",
+                type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True, max_upload_size=5)
+            sent = st.form_submit_button("사진 올리기")
+        if sent:
+            if not files:
+                st.warning("올릴 사진을 골라 주세요.")
+            else:
+                added, problems = user_store.add_gallery_photos(
+                    trip["trip_id"], user_id, [(f.name, f.getvalue()) for f in files])
+                for problem in problems:
+                    st.warning(problem)
+                if added:
+                    st.toast(f"사진 {added}장을 올렸어요.")
+                trip = user_store.get_trip(trip["trip_id"])
+
+    photos = user_store.gallery_paths(trip)
+    title.markdown(f'<div class="gb-subtitle">여행 사진 ({len(photos)})</div>', unsafe_allow_html=True)
+    if not photos:
+        empty = "아직 올린 사진이 없어요." if is_owner else f"{trip['owner']}님이 아직 사진을 올리지 않았어요."
+        st.markdown(f'<div class="gb-picks-empty">{esc(empty)}</div>', unsafe_allow_html=True)
+        return
+
+    cols = st.columns(4, gap="small")
+    for i, (filename, path) in enumerate(photos):
+        with cols[i % 4], st.container(key=f"gphoto_{i}"):
+            st.image(str(path), width="stretch")  # 사진 위에 마우스를 올리면 크게 보기 버튼이 나옴
+            if is_owner:
+                with st.popover("삭제", icon=":material/delete:"):
+                    st.markdown("이 사진을 삭제할까요?")
+                    st.button("삭제", key=f"gdel_{filename}", type="primary",
+                              on_click=delete_photo_click, args=(trip["trip_id"], user_id, filename))
 
 
 def render_favorites(trip: dict, user_id: str, places_by_id: dict):
@@ -893,6 +941,7 @@ def render_trip_detail(user_id: str, trip_id: str, places_by_id: dict):
         with right:
             render_delete_button(trip["trip_id"], help_text="내 사물함에서 빼기")
 
+    render_gallery(trip, user_id)
     render_favorites(trip, user_id, places_by_id)
     render_saved_route(trip, places_by_id)
     st.markdown('<div class="gb-subtitle">추천 결과</div>', unsafe_allow_html=True)
@@ -927,15 +976,16 @@ def render_main(user_id: str):
     places_by_id = {p["place_id"]: p for p in all_places}
 
     render_header(user_id)
-    render_nav()
-    if st.session_state.get("page") == "chat":
-        chat_view.render_chat_page(user_id, places_by_id, render_place_card,
-                                   lambda ids: map_places_for(ids, places_by_id))
+    page = st.session_state.get("page", "plan")
+    open_id = st.session_state.get("open_trip_id")
+    if open_id and page == "plan":  # 사물함 파일 화면에서는 위쪽 탭 없이 [← 사물함으로 돌아가기]만
+        render_trip_detail(user_id, open_id, places_by_id)
         return
 
-    open_id = st.session_state.get("open_trip_id")
-    if open_id:
-        render_trip_detail(user_id, open_id, places_by_id)
+    render_nav()
+    if page == "chat":
+        chat_view.render_chat_page(user_id, places_by_id, render_place_card,
+                                   lambda ids: map_places_for(ids, places_by_id))
         return
 
     regions = sorted({p["region"] for p in all_places})

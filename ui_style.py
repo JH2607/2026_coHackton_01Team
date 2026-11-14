@@ -344,6 +344,10 @@ header[data-testid="stHeader"] { background: transparent; }
 [class*="st-key-chat_example_"] button p { font-size: 0.95rem !important; }
 .gb-chat-mode { display: inline-block; font-size: 0.8rem; background: #EFE6CC; border: 1px dashed #1F2B24; border-radius: 999px; padding: 1px 10px; margin-bottom: 4px; }
 [data-testid="stChatMessage"] { background: transparent; }
+/* 여행 사진첩: 정사각형으로 잘라서 나란히 */
+[class*="st-key-gphoto_"] img { aspect-ratio: 1 / 1; object-fit: cover; border-radius: 10px; border: 1.5px solid #1F2B24; }
+[class*="st-key-gphoto_"] [data-testid="stPopover"] button { padding: 0.1rem 0.6rem !important; min-height: 1.8rem !important; }
+[class*="st-key-gphoto_"] [data-testid="stPopover"] button p { font-size: 0.85rem !important; }
 [data-testid="stColumn"]:has(.st-key-chat_side) { position: sticky; top: 4rem; align-self: flex-start; }
 
 .gb-form-title { font-family: 'Jua', sans-serif; font-size: 1.55rem; margin: -0.2rem 0 0.4rem; }
