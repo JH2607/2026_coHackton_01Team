@@ -20,7 +20,8 @@ address 열은 원래 값이 '홍대 일대'처럼 번지가 없을 때만, 그�
 
 수동 보정: 이름이 바뀐 곳 등은 data/kakao_overrides.csv 에
     place_id,query,note
-    P030,진정유전,카카오 등록명이 한글
+    P030,진청유점,카카오 등록명이 한글
+    P062,@주소,장소 검색 없이 CSV 주소로만 좌표 (오매칭이 반복될 때)
 처럼 적고 `--only P030`으로 다시 실행하면 그 검색어로 조회한다.
 """
 from __future__ import annotations

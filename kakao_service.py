@@ -49,6 +49,7 @@ COORD_STATUSES = (STATUS_OK, STATUS_NAME_DIFF, STATUS_ADDR_DIFF, STATUS_ADDR_ONL
 REVIEW_STATUSES = (STATUS_NAME_DIFF, STATUS_ADDR_DIFF, STATUS_ADDR_ONLY, STATUS_NOT_FOUND, STATUS_ERROR)
 
 NAME_THRESHOLD = 0.8
+ADDRESS_ONLY = '@주소'  # kakao_overrides.csv의 query에 쓰면 주소로만 좌표
 _REGION_WORDS = ('성수동', '성수', '홍대입구', '홍대', '연남동', '연남', '서울숲')
 _VAGUE_ADDRESS = re.compile(r'일대|생활권|부근|인근')
 
@@ -231,17 +232,19 @@ def match_place(name: str, region: str = '', address: str = '', *,
     """카카오에서 장소를 찾아 CSV 정보와 대조한다.
 
     queries: 검색어를 직접 지정 (수동 보정용). 없으면 name_aliases(name)를 차례로 사용.
+             ['@주소']를 주면 장소 검색을 건너뛰고 CSV 주소로만 좌표를 찾는다 (오매칭이 반복되는 곳용).
     반환: status(위 STATUS_* 중 하나), lat, lng, place_url, kakao_name, kakao_address, kakao_id,
           name_score, address_match, query, note, candidates(사람 확인용 상위 후보 3개)
     """
     if not rest_key():
         return _empty(STATUS_NO_KEY, 'KAKAO_REST_API_KEY 미설정')
 
+    address_only = queries == [ADDRESS_ONLY]
     want_district = _district(address) or REGION_INFO.get(region, {}).get('district', '')
     seen: dict[str, dict] = {}
     scored = []  # (정렬키, doc, name_score, address_match, query)
     try:
-        for query in (queries or name_aliases(name)):
+        for query in ([] if address_only else (queries or name_aliases(name))):
             for doc in _keyword_search(query, region):
                 doc_id = doc.get('id') or doc.get('place_url') or doc.get('place_name')
                 if doc_id in seen:
@@ -309,7 +312,8 @@ def match_place(name: str, region: str = '', address: str = '', *,
             return _empty(STATUS_ERROR, f'주소 검색 실패: {type(exc).__name__}', candidates)
         if doc and _valid_coords(doc.get('y'), doc.get('x')):
             road = (doc.get('road_address') or {}).get('address_name') or doc.get('address_name', '')
-            note = ('거리·구역 장소 — CSV 대표 지점 주소로 좌표 표시' if is_vague_address(address)
+            note = ('수동 지정(@주소) — CSV 주소로만 좌표 표시' if address_only
+                    else '거리·구역 장소 — CSV 대표 지점 주소로 좌표 표시' if is_vague_address(address)
                     else '카카오 장소 검색에 없음 — CSV 주소 위치만 표시 (폐업·미등록 확인)')
             result = _empty(STATUS_ADDR_ONLY, note, candidates)
             result.update({'lat': float(doc['y']), 'lng': float(doc['x']), 'kakao_address': road})

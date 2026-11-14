@@ -148,6 +148,13 @@ class MatchPlaceTest(Base):
         r = ks.match_place('산울림 소극장', '홍대', '서울특별시 마포구 와우산로 157', queries=['소극장산울림'])
         self.assertEqual((r['status'], r['kakao_name']), (ks.STATUS_OK, '소극장산울림'))
 
+    def test_override_address_only(self):
+        fake = self.fake(address={'서울 성동구 성수이로16길 32': [
+            {'x': '127.05', 'y': '37.54', 'address_name': 'a', 'road_address': {'address_name': '서울 성동구 성수이로16길 32'}}]})
+        r = ks.match_place('글로우 성수', '성수', '서울 성동구 성수이로16길 32 3동', queries=[ks.ADDRESS_ONLY])
+        self.assertEqual(r['status'], ks.STATUS_ADDR_ONLY)
+        self.assertEqual([p for p, _ in fake.calls], ['/v2/local/search/address.json'])
+
     def test_override_query(self):
         self.fake(keyword={'진정유전': [doc('진정유전', '서울 마포구 동교로46길 27')]})
         r = ks.match_place('Jincheongyujeom (연남동 한식당)', '홍대', '서울특별시 마포구 동교로46길 27',
