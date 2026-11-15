@@ -1,6 +1,6 @@
 """
 AI 기능 담당 파일 (ai_service.py)
-담당 분야: 3. AI 추천 만들기 (프롬프트, JSON 출력, 오류 처리)
+담당 분야: 3. AI 추천 만들기 + 4. AI 툴 호출 및 채팅 연동 (chat_recommend)
 """
 
 import os
@@ -9,6 +9,9 @@ import logging
 from typing import Dict, Any, List
 from dotenv import load_dotenv
 from openai import OpenAI
+
+import db_tools
+import kakao_service
 
 # ---------------------------------------------------------
 # 1. 환경 변수 로드 및 로깅 설정
@@ -25,7 +28,7 @@ def get_openrouter_client() -> tuple[OpenAI, str]:
     model = os.getenv("LLM_MODEL", "google/gemini-2.0-flash-001")
 
     if not api_key:
-        logger.warning(" OPENROUTER_API_KEY가 설정되지 않았습니다.")
+        logger.warning("OPENROUTER_API_KEY가 설정되지 않았습니다.")
 
     client = OpenAI(
         api_key=api_key or "DUMMY_KEY_FOR_LOCAL_TEST",
@@ -72,6 +75,28 @@ RECOMMEND_SYSTEM_PROMPT = """
 MATCHING_SYSTEM_PROMPT = """
 너는 여행객 간의 일정 및 취향을 분석하여 최적의 동행 시너지를 제안하는 AI 매칭 전문가다.
 반드시 마크다운 코드블록 없이 순수 JSON 문자열만 출력한다.
+"""
+
+CHAT_SYSTEM_PROMPT = """
+너는 대한민국 최고의 맞춤형 로컬 여행 코스 전문 AI 플래너다.
+사용자의 질문을 분석하여 제공된 도구(`search_places`)를 호출해 실제 DB에서 장소를 찾아야 한다.
+
+[작성 및 확장·축소 규칙]
+1. 키워드 확장: 질문의 목적이나 분위기 키워드(예: "비 오는 날 데이트" → 실내, 분위기, 카페, 전시 등)를 DB 태그에 맞게 유연하게 확장한다.
+2. 반복 호출: 결과가 너무 많거나 적으면 조건을 추가하거나 완화하면서 `search_places` 툴을 활용한다.
+3. 환각 방지: 최종 출력의 `places`는 반드시 DB에 실제로 존재하는 `place_id`와 추천 이유(reason)만 포함한다. 없는 ID는 절대 금지.
+4. 출력 형식: 마크다운 코드블록(```json) 없이 순수 JSON 문자열만 출력한다.
+
+[반환 JSON 규격]
+{
+  "reply": "사용자에게 건네는 친절한 답변 멘트",
+  "places": [
+    {
+      "place_id": "실제DB에있는ID",
+      "reason": "조용함 · 창가석 · 디저트"
+    }
+  ]
+}
 """
 
 
@@ -137,7 +162,7 @@ def _get_fallback_matching() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------
-# 4. 주요 AI 실행 함수
+# 4. 기존 AI 실행 함수 및 ui.py 연동 함수 (유지 필수)
 # ---------------------------------------------------------
 def generate_travel_recommendation(user_input: Dict[str, Any]) -> Dict[str, Any]:
     """AI 코스 추천 함수"""
@@ -186,9 +211,6 @@ def match_travelers(user_a: Dict[str, Any], user_b: Dict[str, Any]) -> Dict[str,
         return _get_fallback_matching()
 
 
-# ---------------------------------------------------------
-# 5. ui.py 연동용 핵심 함수 (choose_places_from_csv)
-# ---------------------------------------------------------
 def choose_places_from_csv(conditions: dict, candidates: list) -> list:
     """CSV의 실제 장소 후보 중 AI가 조건에 맞는 장소를 선정하는 함수 (ui.py 필수 호출)"""
     if not candidates:
@@ -253,16 +275,157 @@ def choose_places_from_csv(conditions: dict, candidates: list) -> list:
 
     except Exception as e:
         logger.warning(f"AI 장소 선정 Fallback 적용: {e}")
-        # API 오류/키 누락 시 기본으로 2곳 선정하여 ui.py 멈춤 방지
         return [
             {"place_id": p.get("place_id", ""), "reason": "인기 추천 장소입니다."}
             for p in candidates[:2]
         ]
 
 
+# ---------------------------------------------------------
+# 5. [4번 기능] AI 툴 호출 + 키워드 확장·축소 및 채팅 연동 (chat_view.py 연동)
+# ---------------------------------------------------------
+def _smart_keyword_fallback(question: str) -> Dict[str, Any]:
+    """API Key가 없거나 오류 시 안전하게 키워드를 분석하여 db_tools로 검색하는 Fallback"""
+    region = "홍대" if any(w in question for w in ["홍대", "연남", "합정"]) else "성수"
+    
+    tags = []
+    if any(w in question for w in ["비", "실내", "데이트", "비오는날"]):
+        tags.extend(["실내", "분위기"])
+    if any(w in question for w in ["조용", "혼자", "휴식"]):
+        tags.extend(["조용한곳", "휴식"])
+        
+    res = db_tools.search_places(region=region, tags=tags if tags else None, limit=4)
+    places_found = res.get("places", [])
+    
+    if len(places_found) < 2:
+        try:
+            kakao_extra = kakao_service._lookup(question[:10], region, "")
+            if kakao_extra.get("lat"):
+                places_found.append({
+                    "place_id": f"kakao_{abs(hash(kakao_extra['matched_name']))}",
+                    "name": kakao_extra["matched_name"],
+                    "category": "추천 장소",
+                    "address": kakao_extra["matched_address"],
+                    "tags": ["외부검색"]
+                })
+        except Exception:
+            pass
+
+    places_out = [
+        {"place_id": p["place_id"], "reason": " · ".join(p.get("tags", [])[:3]) or "인기 추천 장소"}
+        for p in places_found[:4] if "place_id" in p
+    ]
+    
+    return {
+        "reply": f"질문하신 내용을 바탕으로 {region} 지역에서 조건에 맞는 장소를 찾아드렸어요!",
+        "places": places_out,
+        "tool_calls": [{"name": "search_places (smart_fallback)", "arguments": {"region": region, "tags": tags}, "count": len(places_out)}],
+        "mode": "keyword"
+    }
+
+
+def chat_recommend(question: str, history: list[dict]) -> dict:
+    """
+    [4번 핵심 함수] 질문 문장 → AI 툴 호출(키워드 확장/축소) → 검증된 추천 목록 반환
+    chat_view.py와 완벽히 연동됩니다.
+    """
+    api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key or api_key == "DUMMY_KEY_FOR_LOCAL_TEST":
+        return _smart_keyword_fallback(question)
+
+    try:
+        client, model = get_openrouter_client()
+        messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+        for h in (history or []):
+            messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
+        messages.append({"role": "user", "content": question})
+
+        tool_calls_history = []
+        search_result = {"count": 0, "places": []}
+        
+        # 최대 3회까지 툴 반복 호출 (결과가 적거나 많을 때 조건 완화/추가)
+        final_content = "{}"
+        for _ in range(3):
+            response = client.chat.completions.create(
+                model=model,
+                temperature=0.3,
+                messages=messages,
+                tools=db_tools.TOOL_SCHEMAS,
+                tool_choice="auto",
+                timeout=10
+            )
+            msg = response.choices[0].message
+            if msg.tool_calls:
+                messages.append(msg)
+                for tc in msg.tool_calls:
+                    fn_name = tc.function.name
+                    fn_args = tc.function.arguments
+                    tool_output = db_tools.dispatch_tool_call(fn_name, fn_args)
+                    
+                    parsed_args = json.loads(fn_args) if isinstance(fn_args, str) else fn_args
+                    count = tool_output.get("count", len(tool_output.get("places", []))) if isinstance(tool_output, dict) else 0
+                    tool_calls_history.append({
+                        "name": fn_name,
+                        "arguments": parsed_args,
+                        "count": count
+                    })
+                    if isinstance(tool_output, dict):
+                        search_result = tool_output
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": json.dumps(tool_output, ensure_ascii=False)
+                    })
+            else:
+                final_content = msg.content or "{}"
+                break
+
+        # 결과가 0개면 조건 완화하여 재검색
+        if search_result.get("count", 0) == 0:
+            region = "홍대" if "홍대" in question else "성수"
+            fallback_res = db_tools.search_places(region=region, limit=4)
+            search_result = fallback_res
+            tool_calls_history.append({
+                "name": "search_places",
+                "arguments": {"region": region, "note": "결과 부족으로 인한 조건 완화"},
+                "count": fallback_res.get("count", 0)
+            })
+
+        # 유효한 DB ID만 필터링 (없는 ID 제거)
+        valid_ids = {p["place_id"] for p in db_tools.load_places()}
+        raw_places = search_result.get("places", [])
+        verified_places = []
+        seen = set()
+        for p in raw_places:
+            pid = p.get("place_id")
+            if pid in valid_ids and pid not in seen:
+                seen.add(pid)
+                verified_places.append({
+                    "place_id": pid,
+                    "reason": " · ".join(p.get("matched_tags", []) or p.get("tags", []))[:30] or "추천 장소"
+                })
+
+        parsed = _parse_llm_json(final_content) if final_content != "{}" else {}
+        final_places = [
+            item for item in parsed.get("places", [])
+            if isinstance(item, dict) and item.get("place_id") in valid_ids
+        ]
+
+        return {
+            "reply": parsed.get("reply", "조건에 맞는 추천 장소입니다."),
+            "places": final_places if final_places else verified_places[:4],
+            "tool_calls": tool_calls_history,
+            "mode": "ai"
+        }
+
+    except Exception as e:
+        logger.error(f"[AI Service Error]: {e}")
+        return _smart_keyword_fallback(question)
+
+
 if __name__ == "__main__":
     print("✅ ai_service.py 준비 완료!")
+            
 
-    
 
  
