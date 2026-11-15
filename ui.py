@@ -1036,7 +1036,6 @@ def main():
     지금 app.py는 runpy로 ui.py를 매번 '__main__'으로 실행 → 맨 아래 if 문이 main()을 부름.
     """
     st.set_page_config(page_title="김밥 · 여행 추천", page_icon="🧭", layout="wide")
-    st.error("🔴 배포 확인 테스트: 최신 ui.py가 실행되고 있습니다!")  # (팀원 배포 확인용, 확인 후 삭제)
     st.markdown(ui_style.CSS, unsafe_allow_html=True)
 
     if "flash" in st.session_state:
