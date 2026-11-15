@@ -45,7 +45,7 @@ CHAT_SYSTEM_PROMPT = """
 
 def _get_client() -> tuple[OpenAI, str]:
     api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
-    base_url = os.getenv("OPENAI_BASE_URL", "[https://openrouter.ai/api/v1](https://openrouter.ai/api/v1)")
+    base_url = os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
     model = os.getenv("LLM_MODEL", "google/gemini-2.0-flash-001")
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY가 .env에 설정되어 있지 않습니다.")
