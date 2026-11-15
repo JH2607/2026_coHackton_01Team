@@ -3,7 +3,7 @@
 역할: 3번 AI 추천과 4번 카카오 검증을 결합하여 7개 지역 결과표를 자동 생성합니다.
 """
 
-from kakao_verifier import verify_places
+from kakao_service import verify_places
 from ai_service import generate_travel_recommendation
 
 TEST_SCENARIOS = [

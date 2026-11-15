@@ -122,7 +122,7 @@ def to_map_place(place: dict) -> dict:
         "address": place.get("address", ""),
         "lat": number(place.get("latitude")),
         "lng": number(place.get("longitude")),
-        "place_url": place.get("source_url", ""),
+        "place_url": place.get("kakao_place_url") or place.get("source_url", ""),
     }
 
 
