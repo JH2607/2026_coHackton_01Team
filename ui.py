@@ -134,7 +134,10 @@ def map_places_for(place_ids: list[str], places_by_id: dict) -> list[dict]:
 def cost_html(place: dict) -> str:
     price = place["price_krw"].strip()
     if not price:
-        return '<span class="gb-cost unknown">1인 비용 · 가격 미확인</span>'
+        # 공연·클래스처럼 금액이 하나로 안 정해지는 곳은 price_status 앞머리로 표시
+        status = (place.get("price_status") or "").strip()
+        label = next((k for k in ("가격 상이", "변동가격") if status.startswith(k)), "가격 미확인")
+        return f'<span class="gb-cost unknown">1인 비용 · {label}</span>'
     if int(price) == 0:
         return '<span class="gb-cost">1인 비용 · 무료</span>'
     return f'<span class="gb-cost">1인 비용 · 약 {int(price):,}원</span>'
@@ -1024,12 +1027,14 @@ def render_main(user_id: str):
 # 시작점: 로그인 여부에 따라 ① 또는 메인 화면
 # =====================================================================
 def main():
-    """화면 전체를 그린다. app.py가 실행될 때마다(버튼을 누를 때마다) 이 함수를 부름.
+    """화면 전체를 그린다. 버튼을 누를 때마다 Streamlit이 처음부터 다시 실행하면서 이 함수를 부름.
 
     주의: app.py에서 'import ui'만 하면 안 됨. 파이썬은 모듈을 한 번만 실행하므로
-    두 번째 실행(버튼 클릭 · 다른 사용자 접속)부터 화면이 하얗게 비어 버림 → 꼭 ui.main()을 부를 것.
+    두 번째 실행(버튼 클릭 · 다른 사용자 접속)부터 화면이 하얗게 비어 버림.
+    지금 app.py는 runpy로 ui.py를 매번 '__main__'으로 실행 → 맨 아래 if 문이 main()을 부름.
     """
     st.set_page_config(page_title="김밥 · 여행 추천", page_icon="🧭", layout="wide")
+    st.error("🔴 배포 확인 테스트: 최신 ui.py가 실행되고 있습니다!")  # (팀원 배포 확인용, 확인 후 삭제)
     st.markdown(ui_style.CSS, unsafe_allow_html=True)
 
     if "flash" in st.session_state:
