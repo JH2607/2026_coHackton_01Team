@@ -31,6 +31,9 @@ import user_store
 from data_service import get_places_by_region, load_csv
 
 st.set_page_config(page_title="김밥 · 여행 추천", page_icon="🧭", layout="wide")
+
+st.error("🔴 배포 확인 테스트: 최신 ui.py가 실행되고 있습니다!")
+
 st.markdown(ui_style.CSS, unsafe_allow_html=True)
 
 PAGE_SIZE = 6  # 추천 카드를 한 번에 몇 개씩 보여줄지
