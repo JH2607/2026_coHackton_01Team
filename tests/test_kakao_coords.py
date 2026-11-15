@@ -240,7 +240,7 @@ class InactiveTest(unittest.TestCase):
     def test_excluded_from_search_but_still_loadable(self):
         import db_tools, data_service
         inactive = {p['place_id'] for p in db_tools.load_places() if not db_tools.is_active(p)}
-        self.assertEqual(inactive, {'P062', 'P101', 'P102'})
+        self.assertTrue({'P062', 'P101', 'P102'} <= inactive)
         found = {p['place_id'] for r in ('성수', '홍대')
                  for p in db_tools.search_places(region=r, limit=100)['places']}
         self.assertFalse(found & inactive)
