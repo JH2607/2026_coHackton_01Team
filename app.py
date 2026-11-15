@@ -1,9 +1,8 @@
 
 import streamlit as st
 
-st.title("해커톤 프로젝트 1조")
-
-st.write("AI 서비스 개발환경 테스트")
+"""김밥 서비스 실행 파일"""
+import ui
 
 name = st.text_input("이름을 입력하세요")
 
