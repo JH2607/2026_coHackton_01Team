@@ -140,7 +140,10 @@ def map_places_for(place_ids: list[str], places_by_id: dict) -> list[dict]:
 def cost_html(place: dict) -> str:
     price = place["price_krw"].strip()
     if not price:
-        return '<span class="gb-cost unknown">1인 비용 · 가격 미확인</span>'
+        # 공연·클래스처럼 금액이 하나로 안 정해지는 곳은 price_status 앞머리로 표시
+        status = (place.get("price_status") or "").strip()
+        label = next((k for k in ("가격 상이", "변동가격") if status.startswith(k)), "가격 미확인")
+        return f'<span class="gb-cost unknown">1인 비용 · {label}</span>'
     if int(price) == 0:
         return '<span class="gb-cost">1인 비용 · 무료</span>'
     return f'<span class="gb-cost">1인 비용 · 약 {int(price):,}원</span>'
