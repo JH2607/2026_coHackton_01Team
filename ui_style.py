@@ -293,6 +293,17 @@ header[data-testid="stHeader"] { background: transparent; }
 .gb-pv-file { border: 1.5px solid #1F2B24; border-radius: 12px; background: #fff; overflow: hidden; font-size: 0.75rem; }
 .gb-pv-file img { display: block; width: 100%; }
 .gb-pv-file div { padding: 3px 6px; }
+/* 기능 5 미리보기: 채팅 말풍선 */
+.gb-pv-bubble {
+  width: fit-content; max-width: 85%; margin: 6px 0; padding: 6px 12px; font-size: 0.85rem; line-height: 1.45;
+  border: 1.5px solid #1F2B24; border-radius: 14px;
+}
+.gb-pv-me { margin-left: auto; background: #F6C945; border-bottom-right-radius: 4px; }
+.gb-pv-ai { background: #fff; border-bottom-left-radius: 4px; }
+.gb-pv-pick {
+  font-family: 'Jua', sans-serif; font-size: 0.72rem; background: #F6C945;
+  border: 1px solid #1F2B24; border-radius: 6px; padding: 0 5px; margin-right: 3px;
+}
 .gb-footer { text-align: center; margin: 3rem 0 1rem; font-size: 0.85rem; letter-spacing: 0.2em; }
 
 /* ---------- ④⑤ 메인 화면 ---------- */
@@ -395,11 +406,10 @@ header[data-testid="stHeader"] { background: transparent; }
   border: 1.5px solid #1F2B24; border-radius: 8px; padding: 1px 9px;
 }
 .gb-tag.common { font-weight: 400; color: #6B7068; border-color: #CFC6AE; background: transparent; }
-/* 맨 아래 줄: 1인 비용 + 머무는 시간. 카드 테두리와 붙지 않게 아래 여백 */
+/* 맨 아래 줄: 1인 비용. 카드 테두리와 붙지 않게 아래 여백 */
 .gb-card-bottom { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
 .gb-cost { display: inline-block; background: #F6C945; border-radius: 999px; padding: 2px 12px; font-size: 0.9rem; }
 .gb-cost.unknown { background: #EFE6CC; }
-.gb-time { display: inline-block; font-size: 0.88rem; color: #3F4A43; }
 .gb-save-note { text-align: center; font-size: 0.92rem; color: #3F4A43; margin-top: 4px; }
 
 
@@ -476,5 +486,135 @@ header[data-testid="stHeader"] { background: transparent; }
 .gb-fav-box { background: #FFFDF5; border: 2px solid #1F2B24; border-radius: 16px; padding: 10px 16px; margin-bottom: 10px; }
 .gb-fav-box b { font-family: 'Jua', sans-serif; font-weight: 400; font-size: 1.1rem; }
 .gb-fav-box ul { margin: 6px 0 0; padding-left: 1.2rem; }
+/* ---------- 하트(찜) 버튼: 크기를 고정 → 좁은 칸에서도 반쪽으로 잘리지 않음 ---------- */
+[class*="_heart_"] button {
+  width: 2.5rem !important; height: 2.5rem !important; min-height: 0 !important; padding: 0 !important;
+  border-radius: 50% !important; background: #FFFDF5 !important;
+}
+[class*="_heart_"] button p { font-size: 1.3rem !important; line-height: 1 !important; }
+[class*="st-key-gbpicked_"] [class*="_heart_"] button p { color: #E0245E !important; }
+/* 카드의 [이름 | 하트] 줄: 화면이 좁아도 한 줄, 하트 칸은 버튼 크기만큼만 */
+[class*="st-key-gbcard_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"], [class*="st-key-gbpicked_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.6rem !important; }
+[class*="st-key-gbcard_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"], [class*="st-key-gbpicked_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
+[class*="st-key-gbcard_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child, [class*="st-key-gbpicked_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
+  flex: 0 0 auto !important; width: auto !important;
+}
+
+/* ---------- 이번 여행 기획 폼: 가운데, 폭 75% ---------- */
+.st-key-gb_form_wrap { width: 75% !important; align-self: center; }
+
+/* ---------- 사물함 · 사진첩: 칸을 한 줄에 모두 만들고 화면 폭에 맞춰 줄바꿈 (순서 유지) ---------- */
+.st-key-gb_locker_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { --gb-n: 3; --gb-gap: 2.2rem; }
+.st-key-gb_gallery_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { --gb-n: 4; --gb-gap: 0.8rem; }
+.st-key-gb_locker_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"], .st-key-gb_gallery_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+  flex-wrap: wrap !important; gap: var(--gb-gap) !important; align-items: flex-start;
+}
+.st-key-gb_locker_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"], .st-key-gb_gallery_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+  flex: 0 0 calc((100% - (var(--gb-n) - 1) * var(--gb-gap)) / var(--gb-n)) !important;
+  width: calc((100% - (var(--gb-n) - 1) * var(--gb-gap)) / var(--gb-n)) !important; min-width: 0 !important;
+}
+
+/* =====================================================================
+   아이패드 등 (폭 1024px 이하): 글자 조금 작게, 탭 양쪽 빈칸 없애기, 채팅 카드는 한 장씩
+   ===================================================================== */
+@media (max-width: 1024px) {
+  html { font-size: 16px; }
+  .block-container { padding: 2.4rem 1.8rem 3rem !important; }
+  .st-key-gb_nav > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child, .st-key-gb_nav > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child { display: none; }
+  [class*="st-key-chat_cards_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 100% !important; }
+  .st-key-gb_form_wrap { width: 88% !important; }
+  .st-key-gb_nav { margin-top: 0.5rem; }  /* 머리 부분(프로필 동그라미)과 탭이 붙지 않게 */
+}
+
+/* =====================================================================
+   휴대폰 (폭 640px 이하): Streamlit은 이 폭에서 칸(columns)을 모두 세로로 쌓음
+   → 한 줄로 두어야 하는 곳(머리, 탭, 날짜, 공유 줄 …)은 다시 가로로, 글자 · 여백은 작게
+   ===================================================================== */
+@media (max-width: 640px) {
+  html { font-size: 15px; }
+  .block-container { padding: 3rem 1rem 2.5rem !important; }
+
+  /* 머리: [로고 | ID · 로그아웃 | 프로필] 한 줄, 안내 문장은 숨김 */
+  .st-key-gb_header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.7rem !important; }
+  .st-key-gb_header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
+  .st-key-gb_header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) { display: none; }
+  .st-key-gb_header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1), .st-key-gb_header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(4) { flex: 0 0 auto !important; width: auto !important; }
+  .st-key-gb_header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) { flex: 1 1 0 !important; }
+  .gb-logo-small img { width: 42px; height: 42px; }
+  .gb-logo-small span { font-size: 1rem; }
+  .gb-userid { font-size: 0.9rem; padding: 4px 10px; }
+  .gb-avatar { zoom: 0.6; }
+
+  /* 위쪽 큰 탭 두 개: 한 줄에 나란히 */
+  .st-key-gb_nav > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.6rem !important; }
+  .st-key-gb_nav > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
+  [class*="st-key-navon_"] button, [class*="st-key-navoff_"] button, .st-key-landing_ai button {
+    min-height: 2.7rem !important; padding: 0.2rem 0.5rem !important;
+  }
+  [class*="st-key-navon_"] button p, [class*="st-key-navoff_"] button p, .st-key-landing_ai button p {
+    font-size: 1.05rem !important; white-space: nowrap;
+  }
+
+  /* 첫 화면 위쪽: 소개 → [AI에게 물어보기] → [로그인 | 회원가입] */
+  .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
+  .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1), .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) { min-width: 100% !important; }
+  .gb-intro { display: block; text-align: center; border-radius: 16px; font-size: 0.92rem; }
+  [data-testid="stMarkdownContainer"]:has(> .gb-intro) { margin-bottom: 0 !important; }  /* AI 버튼과 붙지 않게 */
+  .gb-hero { margin-top: 1.4rem; }
+  .gb-hero img { width: 150px; height: 150px; }
+  .gb-hero-name { font-size: 60px; }
+  .gb-hero-team { font-size: 13px; }
+  .gb-scroll { margin: 1.6rem 0 1.8rem; }
+  /* 기능 소개: 휴대폰에서는 항상 [설명 → 미리보기] 순서 */
+  [data-testid="stColumn"]:has(.gb-feature-title) { order: -1; }
+  /* 설명과 미리보기는 가깝게, 다음 기능과는 멀게 */
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .gb-feature-title) { row-gap: 1.1rem !important; margin-bottom: 1.6rem; }
+  .gb-feature-title { font-size: 1.35rem; border-bottom-width: 5px; }
+  .gb-feature-text { font-size: 0.98rem; line-height: 1.65; }
+  .gb-preview { padding: 14px; box-shadow: 4px 4px 0 #F6C945; }
+  .gb-pv-link .gb-pv-card { flex-basis: 36%; }
+  .gb-pv-browser { min-width: 0; }
+  .gb-pv-url { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gb-pv-file { font-size: 0.7rem; }
+
+  /* 이번 여행 기획 폼: 화면 전체 폭, 날짜 두 칸은 한 줄 */
+  .st-key-gb_form_wrap { width: 100% !important; }
+  [data-testid="stForm"] { padding: 1rem 1rem; border-radius: 18px; }
+  .gb-form-title { font-size: 1.35rem; }
+  .st-key-gb_dates > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.4rem !important; }
+  .st-key-gb_dates > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
+
+  /* 제목들 */
+  .gb-section-title { font-size: 1.45rem; }
+  .gb-sub-title { font-size: 1.2rem; }
+  .gb-chat-title { font-size: 1.5rem; }
+  .gb-locker-title { font-size: 1.45rem; padding: 0.25rem 1rem; }
+  .gb-detail-title { font-size: 1.6rem; }
+
+  /* [추천 내용 ── Share the file with (공유)] 한 줄 */
+  .st-key-gb_results_head > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.5rem !important; }
+  .st-key-gb_results_head > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
+  .st-key-gb_results_head > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2), .st-key-gb_results_head > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+    flex: 0 0 auto !important; width: auto !important;
+  }
+  .gb-share-label { font-size: 0.8rem; padding-top: 0; }
+
+  /* 공유 상태 + 휴지통 한 줄 */
+  .st-key-gb_share_row > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"], .st-key-gb_share_row_guest > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.5rem !important; }
+  .st-key-gb_share_row > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"], .st-key-gb_share_row_guest > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
+  .st-key-gb_share_row > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child, .st-key-gb_share_row_guest > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
+    flex: 0 0 auto !important; width: auto !important;
+  }
+  .gb-share-line { font-size: 0.88rem; }
+
+  /* 사물함 2개씩, 사진첩 3장씩 */
+  .st-key-gb_locker_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { --gb-n: 2; --gb-gap: 0.9rem; }
+  .st-key-gb_gallery_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { --gb-n: 3; --gb-gap: 0.5rem; }
+  .gb-file-name { font-size: 0.95rem; }
+  .gb-file-img img { box-shadow: 3px 3px 0 #F6C945; }
+
+  /* AI 채팅: 오른쪽 지도 칸이 아래로 내려가므로 '화면에 붙기'는 끔 */
+  [data-testid="stColumn"]:has(.st-key-chat_side) { position: static; }
+}
 </style>
 """

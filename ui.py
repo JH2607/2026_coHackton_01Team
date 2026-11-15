@@ -1,4 +1,4 @@
-"""프론트엔드 담당 파일 (Streamlit).   실행:  streamlit run ui.py
+"""프론트엔드 담당 파일 (Streamlit).   실행:  streamlit run app.py  (또는 streamlit run ui.py)
 
 화면 흐름 (설계도 번호 기준)
   ① 첫 화면 (로그인 전)   : 소개 문구 + 로고 + 기능 소개, 오른쪽 위 [로그인] [회원가입]
@@ -29,9 +29,6 @@ import route_service
 import ui_style
 import user_store
 from data_service import get_places_by_region, load_csv
-
-st.set_page_config(page_title="김밥 · 여행 추천", page_icon="🧭", layout="wide")
-st.markdown(ui_style.CSS, unsafe_allow_html=True)
 
 PAGE_SIZE = 6  # 추천 카드를 한 번에 몇 개씩 보여줄지
 COMPANIONS = ["혼자", "친구", "연인", "가족"]
@@ -155,14 +152,6 @@ def tags_html(place: dict) -> str:
     chips = "".join(f'<span class="gb-tag">#{esc(t)}</span>' for t in special)
     chips += "".join(f'<span class="gb-tag common">#{esc(t)}</span>' for t in common)
     return f'<div class="gb-tags">{chips}</div>'
-
-
-def time_html(place: dict) -> str:
-    minutes = place["duration_min"].strip()
-    if not minutes:
-        return ""
-    return (f'<span class="gb-time" title="그곳에서 보내는 예상 시간 (데이터의 추정값)">'
-            f'⏱ 예상 머무는 시간 약 {esc(minutes)}분</span>')
 
 
 def chips_html(conditions: dict) -> str:
@@ -311,6 +300,19 @@ PREVIEW_LOCKER = f"""
 </div>"""
 
 
+PREVIEW_CHAT = f"""
+<div class="gb-preview" aria-hidden="true">
+  <div class="gb-pv-bubble gb-pv-me">성수에서 친구랑 사진 찍기 좋은 곳 알려 줘</div>
+  <div class="gb-pv-bubble gb-pv-ai">DB에서 찾았어요! 마음에 드는 곳을 찜해 보세요.</div>
+  <div class="gb-pv-cards">
+    <div class="gb-pv-card"><img src="{ui_style.category_image_uri('여가활동')}" alt="">
+      <div><span class="gb-pv-pick">AI PICK</span> 산책 · 사진</div></div>
+    <div class="gb-pv-card"><img src="{ui_style.category_image_uri('전시')}" alt="">
+      <div><span class="gb-pv-pick">AI PICK</span> 전시 · 실내</div></div>
+  </div>
+</div>"""
+
+
 def render_feature(title: str, text: str, preview: str, preview_left: bool):
     cols = st.columns(2, gap="large", vertical_alignment="center")
     text_html = f'<div class="gb-feature-title">{title}</div><div class="gb-feature-text">{text}</div>'
@@ -320,17 +322,18 @@ def render_feature(title: str, text: str, preview: str, preview_left: bool):
 
 
 def render_landing():
-    top = st.columns([5, 2.4, 1.2, 1.4], vertical_alignment="center")
-    top[0].markdown(
-        '<div class="gb-intro">취향대로 골라 한 줄로 말아 주는 여행 추천 서비스, <b>김밥</b></div>',
-        unsafe_allow_html=True,
-    )
-    if top[1].button("AI에게 물어보기", key="landing_ai", icon=":material/forum:", use_container_width=True):
-        login_required_dialog()
-    if top[2].button("로그인", use_container_width=True):
-        login_dialog()
-    if top[3].button("회원가입", type="primary", use_container_width=True):
-        signup_dialog()
+    with st.container(key="gb_landing_top"):  # 휴대폰에서는 로그인 · 회원가입을 한 줄로 (ui_style.py)
+        top = st.columns([5, 2.4, 1.2, 1.4], vertical_alignment="center")
+        top[0].markdown(
+            '<div class="gb-intro">취향대로 골라 한 줄로 말아 주는 여행 추천 서비스, <b>김밥</b></div>',
+            unsafe_allow_html=True,
+        )
+        if top[1].button("AI에게 물어보기", key="landing_ai", icon=":material/forum:", use_container_width=True):
+            login_required_dialog()
+        if top[2].button("로그인", use_container_width=True):
+            login_dialog()
+        if top[3].button("회원가입", type="primary", use_container_width=True):
+            signup_dialog()
 
     next_dialog = st.session_state.pop("next_dialog", None)  # '로그인이 필요해요' 팝업에서 고른 것
     if next_dialog == "login":
@@ -368,6 +371,12 @@ def render_landing():
         "여행 이름을 바꾸고, 사진과 소감을 남겨 두었다가 언제든 다시 꺼내 볼 수 있어요.",
         PREVIEW_LOCKER, preview_left=False,
     )
+    render_feature(
+        "기능 5 · AI에게 물어보기",
+        "원하는 여행을 문장으로 적으면 AI가 김밥 DB에 있는 실제 장소 중에서 골라, 추천 이유를 키워드로 알려 드려요. "
+        "마음에 드는 곳은 찜해서 지도에서 바로 확인할 수 있어요.",
+        PREVIEW_CHAT, preview_left=True,
+    )
 
     st.markdown('<div class="gb-footer">TEAM GIMBAP · 2026 연합 해커톤</div>', unsafe_allow_html=True)
 
@@ -387,6 +396,11 @@ def avatar_font_size(user_id: str) -> str:
 
 
 def render_header(user_id: str):
+    with st.container(key="gb_header"):  # 휴대폰에서는 안내 문장을 숨기고 한 줄로 (ui_style.py)
+        _render_header_row(user_id)
+
+
+def _render_header_row(user_id: str):
     cols = st.columns([1.1, 5.2, 2.0, 1.2], vertical_alignment="center")
     cols[0].markdown(ui_style.logo_html("small"), unsafe_allow_html=True)
     cols[1].markdown(
@@ -440,16 +454,16 @@ def render_trip_form(user_id: str, regions: list[str], categories: list[str]):
     fill_form_from_plan(regions, categories)
     today = dt.date.today()
     st.write("")
-    _, center, _ = st.columns([1, 6, 1])
-    with center, st.form("trip_form"):
+    with st.container(key="gb_form_wrap"), st.form("trip_form"):  # 가운데 정렬 · 폭은 ui_style.py
         st.markdown('<div class="gb-form-title">이번 여행 기획</div>', unsafe_allow_html=True)
         region = st.selectbox("목적지", regions, key="f_region")
 
-        date_cols = st.columns([5, 0.5, 5], vertical_alignment="bottom")
-        start = date_cols[0].date_input("날짜 (시작)", min_value=today, key="f_start")
-        date_cols[1].markdown("<div style='text-align:center;padding-bottom:0.45rem;font-size:1.3rem'>~</div>",
-                              unsafe_allow_html=True)
-        end = date_cols[2].date_input("날짜 (끝)", min_value=today, key="f_end")
+        with st.container(key="gb_dates"):  # 휴대폰에서도 시작 ~ 끝 날짜를 한 줄로
+            date_cols = st.columns([5, 0.5, 5], vertical_alignment="bottom")
+            start = date_cols[0].date_input("날짜 (시작)", min_value=today, key="f_start")
+            date_cols[1].markdown("<div style='text-align:center;padding-bottom:0.45rem;font-size:1.3rem'>~</div>",
+                                  unsafe_allow_html=True)
+            end = date_cols[2].date_input("날짜 (끝)", min_value=today, key="f_end")
 
         companion = st.radio("동행인", COMPANIONS, horizontal=True, key="f_companion")
         picked = st.multiselect("꼭 체험해 보고 싶은 것", categories, select_all=False, key="f_keywords",
@@ -555,14 +569,15 @@ def render_place_card(place: dict, pick_no: int | None, key_prefix: str, on_hear
             unsafe_allow_html=True,
         )
         heart_col.button(
-            "❤️" if liked else "♡",
+            # 이모지 ❤️는 좁은 칸에서 반쪽으로 잘려서 글자 하트를 씀 (\ufe0e: 아이폰에서도 이모지로 바뀌지 않게, 색은 ui_style.py)
+            "♥\ufe0e" if liked else "♡",
             key=f"{key_prefix}_heart_{place['place_id']}",
             help="찜 취소" if liked else "찜하기",
             on_click=on_heart,
             args=(*heart_args, place["place_id"]),
         )
         st.markdown(
-            f'{tags_html(place)}<div class="gb-card-bottom">{cost_html(place)}{time_html(place)}</div>',
+            f'{tags_html(place)}<div class="gb-card-bottom">{cost_html(place)}</div>',
             unsafe_allow_html=True,
         )
 
@@ -575,6 +590,11 @@ def render_place_card(place: dict, pick_no: int | None, key_prefix: str, on_hear
                 f'<span class="gb-ai-line-text">{reason}</span></div>',
                 unsafe_allow_html=True,
             )
+
+
+def chunks(items: list, size: int) -> list[list]:
+    """[1, 2, 3, 4, 5] → [[1, 2], [3, 4], [5]] (size=2). 카드를 한 줄씩 그려야 휴대폰에서도 순서가 맞음."""
+    return [items[i:i + size] for i in range(0, len(items), size)]
 
 
 def show_more(shown_key: str):
@@ -591,10 +611,10 @@ def render_recommendations(conditions: dict, picks: list[str], key_prefix: str, 
     shown_key = f"shown_{key_prefix}"
     shown = places[: st.session_state.get(shown_key, PAGE_SIZE)]
 
-    cols = st.columns(2, gap="medium")
-    for i, place in enumerate(shown):
-        with cols[i % 2]:
-            render_place_card(place, pick_no.get(place["place_id"]), key_prefix, on_heart, heart_args)
+    for row in chunks(shown, 2):
+        for col, place in zip(st.columns(2, gap="medium"), row):
+            with col:
+                render_place_card(place, pick_no.get(place["place_id"]), key_prefix, on_heart, heart_args)
 
     if len(shown) < len(places):
         st.button(f"더 보기 ({len(shown)}/{len(places)})", key=f"more_{key_prefix}",
@@ -717,7 +737,8 @@ def render_results(user_id: str, places_by_id: dict):
         plan["trip_id"] = None  # 저장했던 파일이 없어졌으면 다시 '저장 전'으로
 
     st.write("")
-    head = st.columns([6, 2.2, 0.8], vertical_alignment="center")
+    with st.container(key="gb_results_head"):  # 휴대폰에서도 제목 · 공유 버튼을 한 줄로
+        head = st.columns([6, 2.2, 0.8], vertical_alignment="center")
     head[0].markdown('<div class="gb-section-title">추천 내용</div>', unsafe_allow_html=True)
     head[1].markdown('<div class="gb-share-label">Share the file with</div>', unsafe_allow_html=True)
     with head[2]:
@@ -810,10 +831,10 @@ def render_locker(user_id: str):
     if not trips:
         st.info("아직 저장된 여행이 없어요. 위에서 이번 여행을 기획한 뒤 맨 아래 [사물함에 저장]을 눌러 보세요.")
         return
-    cols = st.columns(3, gap="large")
-    for i, trip in enumerate(trips):
-        with cols[i % 3]:
-            render_file_card(trip, user_id)
+    with st.container(key="gb_locker_grid"):  # 한 줄에 몇 개씩 놓을지는 ui_style.py (화면 폭에 따라)
+        for col, trip in zip(st.columns(len(trips)), trips):
+            with col:
+                render_file_card(trip, user_id)
 
 
 # =====================================================================
@@ -843,7 +864,8 @@ def render_owner_info(trip: dict, user_id: str):
             st.rerun()
 
     # 왼쪽: 공유 상태 글자 + 바로 옆에 공유(사람) 아이콘 / 오른쪽 끝: 휴지통
-    left, right = st.columns([6, 1], vertical_alignment="center")
+    with st.container(key="gb_share_row"):  # 휴대폰에서도 휴지통이 같은 줄 오른쪽 끝에
+        left, right = st.columns([6, 1], vertical_alignment="center")
     with left, st.container(horizontal=True, vertical_alignment="center", gap="small"):
         if trip["shared_with"]:
             names = ", ".join(trip["shared_with"])
@@ -892,9 +914,10 @@ def render_gallery(trip: dict, user_id: str):
         st.markdown(f'<div class="gb-picks-empty">{esc(empty)}</div>', unsafe_allow_html=True)
         return
 
-    cols = st.columns(4, gap="small")
-    for i, (filename, path) in enumerate(photos):
-        with cols[i % 4], st.container(key=f"gphoto_{i}"):
+    with st.container(key="gb_gallery_grid"):
+        cols = st.columns(len(photos), gap="small")
+    for i, (col, (filename, path)) in enumerate(zip(cols, photos)):
+        with col, st.container(key=f"gphoto_{i}"):
             st.image(str(path), width="stretch")  # 사진 위에 마우스를 올리면 크게 보기 버튼이 나옴
             if is_owner:
                 with st.popover("삭제", icon=":material/delete:"):
@@ -935,7 +958,8 @@ def render_trip_detail(user_id: str, trip_id: str, places_by_id: dict):
     else:
         st.markdown(f'<div class="gb-detail-title">{esc(user_store.auto_title(trip["conditions"]))}</div>',
                     unsafe_allow_html=True)
-        left, right = st.columns([6, 1], vertical_alignment="center")
+        with st.container(key="gb_share_row_guest"):
+            left, right = st.columns([6, 1], vertical_alignment="center")
         left.markdown(f'<div class="gb-share-line">🤝 {esc(trip["owner"])}님이 공유한 여행이에요</div>',
                       unsafe_allow_html=True)
         with right:
@@ -964,7 +988,8 @@ def set_page(page: str):
 def render_nav():
     """머리 부분 아래 큰 탭 두 개. 지금 보고 있는 탭은 노란색 (ui_style.py: st-key-navon_)."""
     current = st.session_state.get("page", "plan")
-    cols = st.columns([1, 2, 2, 1])
+    with st.container(key="gb_nav"):  # 휴대폰에서는 양쪽 빈칸을 없애고 두 탭을 한 줄로
+        cols = st.columns([1, 2, 2, 1])
     for col, (page, label, icon) in zip(cols[1:3], NAV_PAGES):
         state = "navon" if page == current else "navoff"
         col.button(label, key=f"{state}_{page}", icon=icon, use_container_width=True,
@@ -998,10 +1023,23 @@ def render_main(user_id: str):
 # =====================================================================
 # 시작점: 로그인 여부에 따라 ① 또는 메인 화면
 # =====================================================================
-if "flash" in st.session_state:
-    st.toast(st.session_state.pop("flash"))
+def main():
+    """화면 전체를 그린다. app.py가 실행될 때마다(버튼을 누를 때마다) 이 함수를 부름.
 
-if "user" in st.session_state:
-    render_main(st.session_state["user"])
-else:
-    render_landing()
+    주의: app.py에서 'import ui'만 하면 안 됨. 파이썬은 모듈을 한 번만 실행하므로
+    두 번째 실행(버튼 클릭 · 다른 사용자 접속)부터 화면이 하얗게 비어 버림 → 꼭 ui.main()을 부를 것.
+    """
+    st.set_page_config(page_title="김밥 · 여행 추천", page_icon="🧭", layout="wide")
+    st.markdown(ui_style.CSS, unsafe_allow_html=True)
+
+    if "flash" in st.session_state:
+        st.toast(st.session_state.pop("flash"))
+
+    if "user" in st.session_state:
+        render_main(st.session_state["user"])
+    else:
+        render_landing()
+
+
+if __name__ == "__main__":  # streamlit run ui.py 로 직접 실행할 때
+    main()

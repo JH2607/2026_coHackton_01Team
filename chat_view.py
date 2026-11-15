@@ -115,7 +115,7 @@ def _clean(raw: dict, places_by_id: dict) -> dict:
         "reply": str((raw or {}).get("reply", "")).strip() or "추천 결과예요.",
         "places": places[:MAX_PLACES],
         "tool_calls": list((raw or {}).get("tool_calls", [])),
-        "mode": "ai",
+        "mode": "keyword" if (raw or {}).get("mode") == "keyword" else "ai",
     }
 
 
@@ -144,7 +144,7 @@ def _new_chat():
 def _render_answer(index: int, message: dict, user_id: str, places_by_id: dict, picks: list[str], render_card):
     st.markdown(message["content"])
     if message.get("mode") == "keyword":
-        st.markdown('<span class="gb-chat-mode">임시 키워드 검색 · AI 연결 전</span>', unsafe_allow_html=True)
+        st.markdown('<span class="gb-chat-mode">AI 대신 키워드 검색으로 찾은 결과예요</span>', unsafe_allow_html=True)
     if message.get("tool_calls"):
         with st.expander("어떻게 찾았는지 보기"):
             for call in message["tool_calls"]:
@@ -153,14 +153,18 @@ def _render_answer(index: int, message: dict, user_id: str, places_by_id: dict, 
                 st.markdown(f"- `{call.get('name', '')}`({args})" + (f" → {count}곳" if count is not None else ""))
 
     pick_no = {place_id: i for i, place_id in enumerate(picks, start=1)}
-    cols = st.columns(2, gap="small")
-    for i, item in enumerate(message.get("places", [])):
-        place = dict(places_by_id[item["place_id"]])
-        place["ai_reason"] = item.get("reason", "")
-        place["reason_badge"] = "AI PICK" if message.get("mode") == "ai" else "DB 검색"
-        with cols[i % 2]:
-            render_card(place, pick_no.get(place["place_id"]), f"chat{index}",
-                        user_store.toggle_ai_pick, (user_id,))
+    items = message.get("places", [])
+    for start in range(0, len(items), 2):
+        # key: 아이패드처럼 대화 칸이 좁을 때 카드를 한 장씩 놓으려고 (ui_style.py: chat_cards_)
+        with st.container(key=f"chat_cards_{index}_{start}"):
+            cols = st.columns(2, gap="small")
+        for col, item in zip(cols, items[start:start + 2]):
+            place = dict(places_by_id[item["place_id"]])
+            place["ai_reason"] = item.get("reason", "")
+            place["reason_badge"] = "AI PICK" if message.get("mode") == "ai" else "DB 검색"
+            with col:
+                render_card(place, pick_no.get(place["place_id"]), f"chat{index}",
+                            user_store.toggle_ai_pick, (user_id,))
 
 
 def render_chat_page(user_id: str, places_by_id: dict, render_card, map_places_for):
@@ -179,6 +183,7 @@ def render_chat_page(user_id: str, places_by_id: dict, render_card, map_places_f
     for i, (col, example) in enumerate(zip(example_cols, EXAMPLE_QUESTIONS)):
         col.button(example, key=f"chat_example_{i}", on_click=_ask_example, args=(example,), use_container_width=True)
 
+    # 아이패드 · 휴대폰에서는 대화 → 찜한 리스트 순서로 위아래로 쌓임 (ui_style.py)
     chat_col, pick_col = st.columns([3, 2], gap="large")
     with chat_col:
         # 입력창은 예시 질문 바로 아래 (화면 맨 아래에 붙는 방식이 아님: 칸 안에 넣으면 그 자리에 표시됨)
