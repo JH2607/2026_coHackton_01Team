@@ -13,8 +13,9 @@ class SearchTests(unittest.TestCase):
 
     def test_search_region(self):
         res=search_places(region='성수', limit=100)
-        self.assertEqual(res['count'],50)
-        self.assertEqual(len(res['places']),50)
+        active=sum(1 for p in load_places() if p['region']=='성수' and (p.get('is_active') or 'Y')!='N')
+        self.assertEqual(res['count'],active)   # 성수 50곳 중 추천 제외(is_active=N) 빼고
+        self.assertEqual(len(res['places']),active)
         self.assertTrue(all(p['region']=='성수' for p in res['places']))
 
     def test_category_alias(self):
@@ -35,7 +36,8 @@ class SearchTests(unittest.TestCase):
 
     def test_limit_count(self):
         r=search_places(limit=3)
-        self.assertEqual(r['count'],104)
+        active=sum(1 for p in load_places() if (p.get('is_active') or 'Y')!='N')
+        self.assertEqual(r['count'],active)   # 104곳 중 추천 제외(is_active=N) 빼고
         self.assertEqual(r['returned'],3)
 
     def test_unknown_region(self):

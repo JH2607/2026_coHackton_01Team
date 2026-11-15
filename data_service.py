@@ -58,6 +58,7 @@ def get_places_by_region(region):
     return [
         place for place in places
         if place["region"] == region
+        and (place.get("is_active") or "Y").strip().upper() != "N"  # 폐점·이전 등 추천 제외
     ]
 
 def get_candidate_places(user_input: dict) -> list[dict]:

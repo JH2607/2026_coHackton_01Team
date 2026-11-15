@@ -44,6 +44,11 @@ def _get_price(row: dict) -> int | None:
         return None
     return price if price >= 0 else None
 
+def is_active(place: dict) -> bool:
+    """places.csv의 is_active가 'N'이면 추천·검색에서 제외 (폐점·이전 등). 열이 없거나 비어 있으면 포함.
+    load_places/get_place_detail은 제외 장소도 그대로 돌려줌 (이미 찜한 장소를 화면에서 불러올 수 있게)."""
+    return (place.get('is_active') or 'Y').strip().upper() != 'N'
+
 def load_places(db_path: str | Path | None = None, enrichment_path: str | Path | None = None) -> list[dict]:
     """소스 파일을 건드리지 않고 place_id로 두 CSV 병합. 항상 새 목록 반환."""
     base = Path(db_path) if db_path is not None else BASE_CSV
@@ -125,11 +130,14 @@ def search_places(
     requested_categories=_tokens(categories)
     requested_companion=(companion or '').strip()
     excluded=set(exclude_place_ids or [])
-    stats={'total_loaded':0,'excluded_unknown_price':0,'excluded_unmatched':0}
+    stats={'total_loaded':0,'excluded_inactive':0,'excluded_unknown_price':0,'excluded_unmatched':0}
     matches=[]
     for p in load_places(db_path, enrichment_path):
         stats['total_loaded']+=1
         if p['place_id'] in excluded: continue
+        if not is_active(p):
+            stats['excluded_inactive'] += 1
+            continue
         if region and p.get('region') != region: continue
         if requested_categories:
             acceptable=set().union(*(CATEGORY_ALIASES.get(c,{c}) for c in requested_categories))

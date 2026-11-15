@@ -235,5 +235,19 @@ class FillScriptTest(Base):
         self.assertTrue(detail['place']['latitude'])
 
 
+class InactiveTest(unittest.TestCase):
+    """is_active=N 장소는 추천·검색에서 빠지고, 장소 번호로는 계속 불러올 수 있어야 함"""
+    def test_excluded_from_search_but_still_loadable(self):
+        import db_tools, data_service
+        inactive = {p['place_id'] for p in db_tools.load_places() if not db_tools.is_active(p)}
+        self.assertEqual(inactive, {'P062', 'P101', 'P102'})
+        found = {p['place_id'] for r in ('성수', '홍대')
+                 for p in db_tools.search_places(region=r, limit=100)['places']}
+        self.assertFalse(found & inactive)
+        form = {p['place_id'] for r in ('성수', '홍대') for p in data_service.get_places_by_region(r)}
+        self.assertFalse(form & inactive)
+        self.assertTrue(db_tools.get_place_detail('P062')['found'])   # 찜해 둔 장소 화면용
+
+
 if __name__ == '__main__':
     unittest.main()
