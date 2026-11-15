@@ -521,7 +521,7 @@ header[data-testid="stHeader"] { background: transparent; }
   html { font-size: 16px; }
   .block-container { padding: 2.4rem 1.8rem 3rem !important; }
   .st-key-gb_nav > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child, .st-key-gb_nav > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child { display: none; }
-  [class*="st-key-chat_cards_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 100% !important; }
+  [class*="st-key-gbrow_chat"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 100% !important; }
   .st-key-gb_form_wrap { width: 88% !important; }
   .st-key-gb_nav { margin-top: 0.5rem; }  /* 머리 부분(프로필 동그라미)과 탭이 붙지 않게 */
 }
@@ -612,6 +612,29 @@ header[data-testid="stHeader"] { background: transparent; }
   .st-key-gb_gallery_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { --gb-n: 3; --gb-gap: 0.5rem; }
   .gb-file-name { font-size: 0.95rem; }
   .gb-file-img img { box-shadow: 3px 3px 0 #F6C945; }
+
+  /* 추천 카드: 한 줄에 두 장씩 → 카드 안의 글자 · 태그 · 하트도 작게 */
+  [class*="st-key-gbrow_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.55rem !important; }
+  [class*="st-key-gbrow_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
+  [class*="st-key-gbcard_"], [class*="st-key-gbpicked_"] {
+    padding: 0.5rem 0.5rem 1.15rem !important; border-radius: 14px !important;  /* 아래: 마지막 줄이 테두리에 붙지 않게 */
+  }
+  [class*="st-key-gbcard_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"], [class*="st-key-gbpicked_"] > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { gap: 0.25rem !important; }
+  .gb-card-img { margin-bottom: 4px; }
+  .gb-card-img img { border-width: 1.5px; border-radius: 9px; }
+  .gb-pick-no { top: 5px; right: 5px; min-width: 24px; height: 24px; padding: 0 4px; font-size: 0.85rem;
+                border-width: 2px; box-shadow: 1px 1px 0 #1F2B24; }
+  .gb-card-name { font-size: 0.95rem; line-height: 1.25; }
+  .gb-card-name small { font-size: 0.72rem; }
+  [class*="_heart_"] button { width: 2rem !important; height: 2rem !important; border-width: 1.5px !important; }
+  [class*="_heart_"] button p { font-size: 1.05rem !important; }
+  .gb-tags { gap: 4px; margin: 0 0 6px; }
+  .gb-tag { font-size: 0.7rem; padding: 0 5px; border-width: 1.2px; border-radius: 6px; }
+  .gb-card-bottom { gap: 4px; margin-bottom: 6px; }
+  .gb-cost { font-size: 0.72rem; padding: 1px 8px; }
+  .gb-ai-line { gap: 5px; margin: 0 0 4px; }
+  .gb-ai-reason-badge { font-size: 0.68rem; padding: 0 5px; border-radius: 6px; }
+  .gb-ai-line-text { font-size: 0.72rem; }
 
   /* AI 채팅: 오른쪽 지도 칸이 아래로 내려가므로 '화면에 붙기'는 끔 */
   [data-testid="stColumn"]:has(.st-key-chat_side) { position: static; }

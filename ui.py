@@ -614,8 +614,10 @@ def render_recommendations(conditions: dict, picks: list[str], key_prefix: str, 
     shown_key = f"shown_{key_prefix}"
     shown = places[: st.session_state.get(shown_key, PAGE_SIZE)]
 
-    for row in chunks(shown, 2):
-        for col, place in zip(st.columns(2, gap="medium"), row):
+    for n, row in enumerate(chunks(shown, 2)):
+        with st.container(key=f"gbrow_{key_prefix}_{n}"):  # 휴대폰에서도 한 줄에 두 장씩 (ui_style.py: gbrow_)
+            cols = st.columns(2, gap="medium")
+        for col, place in zip(cols, row):
             with col:
                 render_place_card(place, pick_no.get(place["place_id"]), key_prefix, on_heart, heart_args)
 

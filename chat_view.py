@@ -155,8 +155,8 @@ def _render_answer(index: int, message: dict, user_id: str, places_by_id: dict, 
     pick_no = {place_id: i for i, place_id in enumerate(picks, start=1)}
     items = message.get("places", [])
     for start in range(0, len(items), 2):
-        # key: 아이패드처럼 대화 칸이 좁을 때 카드를 한 장씩 놓으려고 (ui_style.py: chat_cards_)
-        with st.container(key=f"chat_cards_{index}_{start}"):
+        # key: 휴대폰은 두 장씩, 아이패드는 대화 칸이 좁아서 한 장씩 (ui_style.py: gbrow_)
+        with st.container(key=f"gbrow_chat{index}_{start}"):
             cols = st.columns(2, gap="small")
         for col, item in zip(cols, items[start:start + 2]):
             place = dict(places_by_id[item["place_id"]])
