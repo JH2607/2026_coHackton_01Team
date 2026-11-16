@@ -162,7 +162,14 @@ def chips_html(conditions: dict) -> str:
     chips = [conditions["region"], date_range_text(conditions), picked]
     if conditions.get("companion"):
         chips.append(f"동행인: {conditions['companion']}")
-    return '<div class="gb-chips">' + "".join(f'<span class="gb-chip">{esc(c)}</span>' for c in chips) + "</div>"
+    html_chips = "".join(f'<span class="gb-chip">{esc(c)}</span>' for c in chips)
+    if conditions.get("avoid"):  # 피하고 싶은 조건은 점선 칩으로 구분
+        html_chips += f'<span class="gb-chip avoid">피하고 싶은 조건: {esc(conditions["avoid"])}</span>'
+    return f'<div class="gb-chips">{html_chips}</div>'
+
+
+# 추천 카드 위에 붙이는 작은 안내 (카드 사진이 링크라는 것)
+PHOTO_TIP_HTML = '<div class="gb-tip">💡 장소 사진을 누르면 그 장소의 안내 페이지가 새 창으로 열려요.</div>'
 
 
 # =====================================================================
@@ -170,10 +177,13 @@ def chips_html(conditions: dict) -> str:
 # =====================================================================
 @st.dialog("회원가입", width="small")
 def signup_dialog():
-    user_id = st.text_input("아이디 (username)", placeholder="영문·숫자·_ 3~20자")
-    password = st.text_input("비밀번호 (password)", type="password", placeholder="4자 이상")
-    agreed = st.checkbox("[필수] 약관 (개인정보 수집·이용) 에 동의합니다")
-    if st.button("회원가입", type="primary", use_container_width=True):
+    # 폼(st.form)으로 감싸면 마우스로 버튼을 누르지 않고 엔터만 눌러도 제출됨
+    with st.form("signup_form", border=False):
+        user_id = st.text_input("아이디 (username)", placeholder="영문·숫자·_ 3~20자")
+        password = st.text_input("비밀번호 (password)", type="password", placeholder="4자 이상")
+        agreed = st.checkbox("[필수] 약관 (개인정보 수집·이용) 에 동의합니다")
+        submitted = st.form_submit_button("회원가입", type="primary", use_container_width=True)
+    if submitted:
         error = user_store.create_user(user_id, password, agreed)
         if error:
             st.error(error)
@@ -184,10 +194,12 @@ def signup_dialog():
 
 @st.dialog("로그인", width="small")
 def login_dialog():
-    user_id = st.text_input("아이디 (username)")
-    password = st.text_input("비밀번호 (password)", type="password")
-    st.markdown("김밥에 오신 것을 환영합니다 🎉")
-    if st.button("로그인", type="primary", use_container_width=True):
+    with st.form("login_form", border=False):  # 엔터로 로그인
+        user_id = st.text_input("아이디 (username)")
+        password = st.text_input("비밀번호 (password)", type="password")
+        st.markdown("김밥에 오신 것을 환영합니다 🎉")
+        submitted = st.form_submit_button("로그인", type="primary", use_container_width=True)
+    if submitted:
         if user_store.check_login(user_id, password):
             st.session_state["user"] = user_id.strip()
             flash(f"{user_id.strip()}님, 반가워요!")
@@ -415,7 +427,8 @@ def _render_header_row(user_id: str):
         st.markdown(f'<div class="gb-userid" title="{esc(user_id)}"><b>ID:</b>{esc(user_id)}</div>',
                     unsafe_allow_html=True)
         if st.button("로그아웃", key="logout"):
-            st.session_state.clear()
+            st.session_state.clear()  # 저장 안 한 찜 · 대화도 같이 지워짐 (다음 사람이 못 보게)
+            st.session_state["gb_loaded"] = True  # 김밥 로딩 화면은 처음 접속할 때만
             flash("로그아웃했어요.")
             st.rerun()
     cols[3].markdown(
@@ -515,6 +528,8 @@ def start_plan(user_id: str, conditions: dict):
     saved = user_store.find_my_trip(user_id, conditions)
     if saved:
         hearts += [p for p in saved["favorites"].get(user_id, []) if p not in hearts]
+    # 여행을 만들기 전에 AI 채팅에서 찜해 둔 곳도 이 여행에 합침
+    hearts += [p for p in st.session_state.pop("pending_hearts", []) if p not in hearts]
 
     already_saved = (saved is not None and saved["conditions"] == conditions
                      and set(hearts) <= set(saved["favorites"].get(user_id, [])))
@@ -532,6 +547,37 @@ def toggle_plan_heart(place_id: str):
         hearts.remove(place_id)
     else:
         hearts.append(place_id)
+
+
+# 찜한 리스트는 하나: '이번 여행 기획'과 'AI에게 물어보기'가 같은 리스트를 씀
+#   여행이 있으면 → 그 여행의 찜 (저장 전: plan["favorites"], 저장 후: 사물함 파일)
+#   여행을 만들기 전([확인] 전) → pending_hearts에 모아 두었다가 [확인]을 누르면 그 여행에 합침 (start_plan)
+def current_hearts(user_id: str) -> list[str]:
+    plan = st.session_state.get("plan")
+    if plan:
+        return plan_hearts(plan, user_id)
+    return list(st.session_state.get("pending_hearts", []))
+
+
+def toggle_current_heart(user_id: str, place_id: str):
+    plan = st.session_state.get("plan")
+    if plan and plan["trip_id"] and user_store.get_trip(plan["trip_id"]):
+        user_store.toggle_favorite(plan["trip_id"], user_id, place_id)  # 저장된 여행: 파일에 바로 저장
+        return
+    if plan:
+        plan["trip_id"] = None  # 저장했던 파일이 없어졌으면 '저장 전'으로
+        toggle_plan_heart(place_id)
+        return
+    hearts = st.session_state.setdefault("pending_hearts", [])
+    if place_id in hearts:
+        hearts.remove(place_id)
+    else:
+        hearts.append(place_id)
+
+
+def clear_current_hearts(user_id: str):
+    for place_id in current_hearts(user_id):
+        toggle_current_heart(user_id, place_id)
 
 
 def save_plan(user_id: str) -> str:
@@ -767,11 +813,8 @@ def render_results(user_id: str, places_by_id: dict):
         st.json(plan["conditions"])
 
     st.markdown('<div class="gb-sub-title">추천 장소</div>', unsafe_allow_html=True)
-    if plan["trip_id"]:
-        on_heart, heart_args = user_store.toggle_favorite, (plan["trip_id"], user_id)
-    else:
-        on_heart, heart_args = toggle_plan_heart, ()
-    render_recommendations(plan["conditions"], picks, "main", on_heart, heart_args)
+    st.markdown(PHOTO_TIP_HTML, unsafe_allow_html=True)
+    render_recommendations(plan["conditions"], picks, "main", toggle_current_heart, (user_id,))
 
     # 계획이 끝나면 맨 아래에서 저장
     st.write("")
@@ -975,6 +1018,7 @@ def render_trip_detail(user_id: str, trip_id: str, places_by_id: dict):
     render_saved_route(trip, places_by_id)
     st.markdown('<div class="gb-subtitle">추천 결과</div>', unsafe_allow_html=True)
     st.markdown(chips_html(trip["conditions"]), unsafe_allow_html=True)
+    st.markdown(PHOTO_TIP_HTML, unsafe_allow_html=True)
     render_recommendations(trip["conditions"], list(trip["favorites"].get(user_id, [])), "detail",
                            user_store.toggle_favorite, (trip["trip_id"], user_id))
 
@@ -1014,8 +1058,16 @@ def render_main(user_id: str):
 
     render_nav()
     if page == "chat":
+        plan = st.session_state.get("plan")
+        hearts = {
+            "picks": current_hearts(user_id),
+            "toggle": toggle_current_heart,   # 카드 하트 → toggle_current_heart(user_id, place_id)
+            "clear": clear_current_hearts,
+            "trip_label": f'{plan["conditions"]["region"]} · {date_range_text(plan["conditions"])}' if plan else "",
+            "region": plan["conditions"]["region"] if plan else "",
+        }
         chat_view.render_chat_page(user_id, places_by_id, render_place_card,
-                                   lambda ids: map_places_for(ids, places_by_id))
+                                   lambda ids: map_places_for(ids, places_by_id), hearts, PHOTO_TIP_HTML)
         return
 
     regions = sorted({p["region"] for p in all_places})
@@ -1038,13 +1090,24 @@ def main():
     st.set_page_config(page_title="김밥 · 여행 추천", page_icon="🧭", layout="wide")
     st.markdown(ui_style.CSS, unsafe_allow_html=True)
 
-    if "flash" in st.session_state:
-        st.toast(st.session_state.pop("flash"))
+    # 처음 접속했을 때만: 화면이 다 그려질 때까지 '김밥 마는 중…' 화면으로 덮어 둠
+    # (st.empty는 매번 같은 자리에 만들어야, 다음 실행 때 남아 있던 로딩 화면이 깨끗이 지워짐)
+    loader = st.empty()
+    first_visit = not st.session_state.get("gb_loaded")
+    if first_visit:
+        loader.markdown(ui_style.LOADER_HTML, unsafe_allow_html=True)
+    try:
+        if "flash" in st.session_state:
+            st.toast(st.session_state.pop("flash"))
 
-    if "user" in st.session_state:
-        render_main(st.session_state["user"])
-    else:
-        render_landing()
+        if "user" in st.session_state:
+            render_main(st.session_state["user"])
+        else:
+            render_landing()
+    finally:  # 중간에 오류가 나도 로딩 화면이 오류를 가리지 않게
+        if first_visit:
+            st.session_state["gb_loaded"] = True
+            loader.empty()
 
 
 if __name__ == "__main__":  # streamlit run ui.py 로 직접 실행할 때

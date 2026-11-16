@@ -1,6 +1,7 @@
 """5번: AI에게 물어보기 (채팅 페이지).
 
-흐름: 사용자가 자유롭게 질문 → ask_ai() → 답변 + 추천 장소 카드(♡) → 오른쪽 'AI 추천에서 찜한 리스트' + 지도
+흐름: 사용자가 자유롭게 질문 → ask_ai() → 답변 + 추천 장소 카드(♡) → 오른쪽 '찜한 리스트' + 지도
+      (찜한 리스트는 '이번 여행 기획' 화면과 같은 하나의 리스트: ui.py current_hearts)
 
 ask_ai()가 4번(AI 툴 호출)과 만나는 연결 지점이에요.
   - ai_service.py에 chat_recommend(question, history) 함수가 생기면 자동으로 그 함수를 씀
@@ -18,12 +19,13 @@ ask_ai()가 4번(AI 툴 호출)과 만나는 연결 지점이에요.
   DB에 없는 place_id는 화면에 나오기 전에 여기서 한 번 더 걸러요.
 """
 
+import html
+
 import streamlit as st
 
 import ai_service
 import db_tools
 import map_view
-import user_store
 
 EXAMPLE_QUESTIONS = [
     "성수에서 친구랑 사진 찍기 좋은 곳 추천해 줘",
@@ -141,7 +143,8 @@ def _new_chat():
     st.session_state["chat_messages"] = []
 
 
-def _render_answer(index: int, message: dict, user_id: str, places_by_id: dict, picks: list[str], render_card):
+def _render_answer(index: int, message: dict, user_id: str, places_by_id: dict, picks: list[str], render_card,
+                   on_heart):
     st.markdown(message["content"])
     if message.get("mode") == "keyword":
         st.markdown('<span class="gb-chat-mode">AI 대신 키워드 검색으로 찾은 결과예요</span>', unsafe_allow_html=True)
@@ -163,12 +166,14 @@ def _render_answer(index: int, message: dict, user_id: str, places_by_id: dict, 
             place["ai_reason"] = item.get("reason", "")
             place["reason_badge"] = "AI PICK" if message.get("mode") == "ai" else "DB 검색"
             with col:
-                render_card(place, pick_no.get(place["place_id"]), f"chat{index}",
-                            user_store.toggle_ai_pick, (user_id,))
+                render_card(place, pick_no.get(place["place_id"]), f"chat{index}", on_heart, (user_id,))
 
 
-def render_chat_page(user_id: str, places_by_id: dict, render_card, map_places_for):
-    """render_card: ui.render_place_card / map_places_for: ui.map_places_for (순환 import를 피하려고 받아서 씀)."""
+def render_chat_page(user_id: str, places_by_id: dict, render_card, map_places_for, hearts: dict, photo_tip: str):
+    """render_card: ui.render_place_card / map_places_for: ui.map_places_for (순환 import를 피하려고 받아서 씀).
+    hearts: '이번 여행 기획'과 같이 쓰는 찜한 리스트 하나 (ui.py render_main에서 만듦)
+      {"picks": [place_id, ...], "toggle": f(user_id, place_id), "clear": f(user_id),
+       "trip_label": "성수 · 2026.11.16" (여행을 만들기 전이면 ""), "region": "성수" 또는 ""}"""
     messages = st.session_state.setdefault("chat_messages", [])
 
     st.markdown('<div class="gb-chat-title">AI에게 물어보기</div>'
@@ -195,29 +200,39 @@ def render_chat_page(user_id: str, places_by_id: dict, render_card, map_places_f
             with st.spinner("DB에서 장소를 찾고 있어요..."):
                 messages.append({"role": "assistant", **_answer_fields(ask_ai(question, history, places_by_id))})
 
-        picks = user_store.get_ai_picks(user_id)
+        picks = hearts["picks"]
         if messages:
             st.button("대화 새로 시작", key="chat_new", on_click=_new_chat)
+            st.markdown(photo_tip, unsafe_allow_html=True)  # 카드 사진을 누르면 안내 페이지가 열린다는 안내
         # 최신 질문·답변이 입력창 바로 아래, 예전 것은 아래로 밀려남
         for start in range(len(messages) - len(messages) % 2 - 2, -1, -2):
             question_msg, answer_msg = messages[start], messages[start + 1]
             with st.chat_message("user"):
                 st.markdown(question_msg["content"])
             with st.chat_message("assistant", avatar=":material/explore:"):
-                _render_answer(start + 1, answer_msg, user_id, places_by_id, picks, render_card)
+                _render_answer(start + 1, answer_msg, user_id, places_by_id, picks, render_card, hearts["toggle"])
 
     with pick_col, st.container(key="chat_side"):  # 대화를 내려도 오른쪽 지도는 화면에 붙어 있게 (ui_style.py)
-        st.markdown('<div class="gb-sub-title">AI 추천에서 찜한 리스트</div>', unsafe_allow_html=True)
+        # '이번 여행 기획' 화면과 같은 찜한 리스트 하나
+        st.markdown('<div class="gb-sub-title">찜한 리스트</div>', unsafe_allow_html=True)
+        if hearts["trip_label"]:
+            note = f'[이번 여행 기획]과 같은 리스트예요 · 지금 여행: <b>{html.escape(hearts["trip_label"])}</b>'
+        else:
+            note = '아직 만든 여행이 없어요. 여기서 찜한 곳은 [이번 여행 기획]에서 [확인]을 누르면 그 여행에 함께 담겨요.'
+        st.markdown(f'<div class="gb-tip">{note}</div>', unsafe_allow_html=True)
         pick_places = map_places_for(picks)
-        region = next((places_by_id[p]["region"] for p in picks if p in places_by_id), "")
+        region = hearts["region"] or next((places_by_id[p]["region"] for p in picks if p in places_by_id), "")
         if not region:
             latest = next((m for m in reversed(messages) if m["role"] == "assistant" and m.get("places")), None)
             region = places_by_id[latest["places"][0]["place_id"]]["region"] if latest else "성수"
         map_view.render_picks_map(pick_places, region, key="chat", title_text="찜한 순서", stacked=True,
                                   empty_text="아직 찜한 곳이 없어요. 대화에서 추천받은 장소의 ♡를 누르면 "
                                              "여기와 지도에 번호가 생겨요.")
-        if picks:
-            st.button("찜한 리스트 비우기", key="chat_clear_picks", on_click=user_store.clear_ai_picks, args=(user_id,))
+        if picks:  # 다른 도시를 찾고 싶을 때 한 번에 지우기 (실수로 지우지 않게 한 번 더 확인)
+            with st.popover("찜한 리스트 비우기", use_container_width=True):
+                st.markdown("찜한 곳을 모두 지울까요? [이번 여행 기획]의 찜도 같이 지워져요.")
+                st.button("모두 지우기", key="chat_clear_picks", type="primary", use_container_width=True,
+                          on_click=hearts["clear"], args=(user_id,))
 
 
 def _answer_fields(result: dict) -> dict:

@@ -18,7 +18,6 @@ import html
 import json
 import os
 
-import folium
 import streamlit as st
 import streamlit.components.v1 as components
 from dotenv import load_dotenv
@@ -65,6 +64,7 @@ def _has_coords(place: dict) -> bool:
 def folium_map_html(numbered: list[tuple[int, dict]], center: tuple[float, float],
                     route_path: list[list[float]] | None = None, show_route: bool = False) -> str:
     """numbered: [(찜한 순서 번호, 장소), ...] 중 좌표가 있는 것만."""
+    import folium  # 지도를 그릴 때만 불러옴: 처음 불러오는 데 몇 초 걸려서 첫 화면이 늦게 뜨지 않게
     fmap = folium.Map(location=center, zoom_start=15, tiles="OpenStreetMap", control_scale=True)
     for number, place in numbered:
         folium.Marker(
