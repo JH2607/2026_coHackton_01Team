@@ -180,7 +180,7 @@ def signup_dialog():
     # 폼(st.form)으로 감싸면 마우스로 버튼을 누르지 않고 엔터만 눌러도 제출됨
     with st.form("signup_form", border=False):
         user_id = st.text_input("아이디 (username)", placeholder="영문·숫자·_ 3~20자")
-        password = st.text_input("비밀번호 (password)", type="password", placeholder="최소 4자 (숫자 4자리도 돼요)")
+        password = st.text_input("비밀번호 (password)", type="password", placeholder="최소 4자")
         agreed = st.checkbox("[필수] 약관 (개인정보 수집·이용) 에 동의합니다")
         submitted = st.form_submit_button("회원가입", type="primary", use_container_width=True)
     if submitted:
@@ -357,13 +357,16 @@ def render_landing():
         signup_dialog()
 
     st.markdown(ui_style.logo_html("big"), unsafe_allow_html=True)
-    # 휴대폰에서만 보이는 [로그인 | 회원가입]: 로고 바로 아래 (컴퓨터에서는 위쪽 줄의 버튼을 씀, ui_style.py)
+    # 휴대폰에서만 보이는 버튼: 로고 아래 [로그인 | 회원가입] → [AI에게 물어보기]
+    # (컴퓨터에서는 위쪽 줄의 버튼을 씀, ui_style.py: gb_landing_auth_m)
     with st.container(key="gb_landing_auth_m"):
         auth = st.columns(2)
         if auth[0].button("로그인", key="landing_login_m", use_container_width=True):
             login_dialog()
         if auth[1].button("회원가입", key="landing_signup_m", type="primary", use_container_width=True):
             signup_dialog()
+        if st.button("AI에게 물어보기", key="landing_ai_m", icon=":material/forum:", use_container_width=True):
+            login_required_dialog()
     st.markdown(
         '<div class="gb-scroll">scroll down to see more<span class="gb-arrow">⌄</span></div>',
         unsafe_allow_html=True,

@@ -365,16 +365,16 @@ header[data-testid="stHeader"] { background: transparent; }
 .st-key-logout button:hover { color: #163F87 !important; }
 
 /* 위쪽 큰 탭 (이번 여행 기획 / AI에게 물어보기) + 첫 화면의 [AI에게 물어보기]: 로그인·로그아웃보다 눈에 띄게 */
-[class*="st-key-navon_"] button, [class*="st-key-navoff_"] button, .st-key-landing_ai button {
+[class*="st-key-navon_"] button, [class*="st-key-navoff_"] button, [class*="st-key-landing_ai"] button {
   border: 2.5px solid #1F2B24 !important; border-radius: 999px !important; min-height: 3.1rem !important;
 }
-[class*="st-key-navon_"] button p, [class*="st-key-navoff_"] button p, .st-key-landing_ai button p {
+[class*="st-key-navon_"] button p, [class*="st-key-navoff_"] button p, [class*="st-key-landing_ai"] button p {
   font-family: 'Jua', sans-serif !important; font-size: 1.3rem !important;
 }
-[class*="st-key-navon_"] button, .st-key-landing_ai button { background: #F6C945 !important; box-shadow: 3px 3px 0 #1F2B24; }
+[class*="st-key-navon_"] button, [class*="st-key-landing_ai"] button { background: #F6C945 !important; box-shadow: 3px 3px 0 #1F2B24; }
 [class*="st-key-navoff_"] button { background: #FFFDF5 !important; }
 [class*="st-key-navoff_"] button:hover { background: #F9DC7A !important; }
-.st-key-landing_ai button:hover { background: #F9DC7A !important; }
+[class*="st-key-landing_ai"] button:hover { background: #F9DC7A !important; }
 
 /* AI에게 물어보기 (chat_view.py) */
 .gb-chat-title { font-family: 'Jua', sans-serif; font-size: 1.8rem; margin-top: 0.8rem; }
@@ -615,15 +615,16 @@ header[data-testid="stHeader"] { background: transparent; }
   /* 위쪽 큰 탭 두 개: 한 줄에 나란히 */
   .st-key-gb_nav > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.6rem !important; }
   .st-key-gb_nav > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
-  [class*="st-key-navon_"] button, [class*="st-key-navoff_"] button, .st-key-landing_ai button {
+  [class*="st-key-navon_"] button, [class*="st-key-navoff_"] button, [class*="st-key-landing_ai"] button {
     min-height: 2.7rem !important; padding: 0.2rem 0.5rem !important;
   }
-  [class*="st-key-navon_"] button p, [class*="st-key-navoff_"] button p, .st-key-landing_ai button p {
+  [class*="st-key-navon_"] button p, [class*="st-key-navoff_"] button p, [class*="st-key-landing_ai"] button p {
     font-size: 1.05rem !important; white-space: nowrap;
   }
 
-  /* 첫 화면: 위쪽은 소개 → [AI에게 물어보기], [로그인 | 회원가입]은 로고 아래로 */
-  .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3), .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(4) { display: none; }
+  /* 첫 화면 순서: 소개 → 로고 → [로그인 | 회원가입] → [AI에게 물어보기] → 기능 소개
+     위쪽 줄에서는 소개만 남기고, 버튼은 로고 아래 휴대폰용 버튼(gb_landing_auth_m)을 씀 */
+  .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(n+2) { display: none; }
   .st-key-gb_landing_auth_m { display: flex; width: min(100%, 340px) !important; align-self: center; margin-top: 0.6rem; }
   .st-key-gb_landing_auth_m > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.6rem !important; }
   .st-key-gb_landing_auth_m > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
