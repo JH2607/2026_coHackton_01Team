@@ -20,6 +20,7 @@ ask_ai()가 4번(AI 툴 호출)과 만나는 연결 지점이에요.
 """
 
 import html
+from collections import Counter
 
 import streamlit as st
 
@@ -201,6 +202,8 @@ def render_chat_page(user_id: str, places_by_id: dict, render_card, map_places_f
                 messages.append({"role": "assistant", **_answer_fields(ask_ai(question, history, places_by_id))})
 
         picks = hearts["picks"]
+        if not messages:  # 대화 전: 빈 자리가 '덜 불러온 것'처럼 보이지 않게 환영 말풍선
+            _render_welcome(places_by_id)
         if messages:
             st.button("대화 새로 시작", key="chat_new", on_click=_new_chat)
             st.markdown(photo_tip, unsafe_allow_html=True)  # 카드 사진을 누르면 안내 페이지가 열린다는 안내
@@ -233,6 +236,25 @@ def render_chat_page(user_id: str, places_by_id: dict, render_card, map_places_f
                 st.markdown("찜한 곳을 모두 지울까요? [이번 여행 기획]의 찜도 같이 지워져요.")
                 st.button("모두 지우기", key="chat_clear_picks", type="primary", use_container_width=True,
                           on_click=hearts["clear"], args=(user_id,))
+
+
+def _render_welcome(places_by_id: dict):
+    """대화를 시작하기 전에만 보이는 AI 첫 인사 + 질문 요령 (보기는 실제 DB에 있는 분류 · 태그에서 고름)."""
+    counts = Counter(p["region"] for p in places_by_id.values() if db_tools.is_active(p))
+    db_line = " · ".join(f"{region} {n}곳" for region, n in sorted(counts.items()))
+    tips = [("📍 어디서", "성수 · 홍대"), ("👥 누구와", "혼자 · 친구 · 연인 · 가족"),
+            ("🍽️ 무엇을", "맛집 · 카페 · 전시 · 팝업스토어"), ("✨ 어떤 분위기", "실내 · 사진 · 데이트 · 산책")]
+    items = "".join(f'<div class="gb-guide-item"><b>{k}</b><span>{v}</span></div>' for k, v in tips)
+    with st.chat_message("assistant", avatar=":material/explore:"):
+        st.markdown(
+            '<div class="gb-guide">'
+            '<div class="gb-guide-hello">안녕하세요! 김밥 AI예요. 어떤 여행을 원하는지 편하게 적어 주세요.</div>'
+            '<div class="gb-guide-title">이런 말을 넣으면 더 잘 찾아요</div>'
+            f'<div class="gb-guide-grid">{items}</div>'
+            + (f'<div class="gb-guide-db">지금 김밥 DB에는 <b>{html.escape(db_line)}</b>이 있어요.</div>' if db_line else "")
+            + '</div>',
+            unsafe_allow_html=True,
+        )
 
 
 def _answer_fields(result: dict) -> dict:

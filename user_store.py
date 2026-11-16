@@ -72,7 +72,7 @@ def create_user(user_id: str, password: str, agreed: bool) -> str | None:
     if not ID_PATTERN.match(user_id):
         return "아이디는 영문·숫자·밑줄(_)로 3~20자로 만들어 주세요."
     if len(password) < MIN_PASSWORD_LEN:
-        return f"비밀번호는 {MIN_PASSWORD_LEN}자 이상이어야 해요."
+        return f"비밀번호는 최소 {MIN_PASSWORD_LEN}자로 적어 주세요. ({MIN_PASSWORD_LEN}자리도 돼요)"
     if not agreed:
         return "약관(개인정보 수집·이용)에 동의해야 가입할 수 있어요."
 

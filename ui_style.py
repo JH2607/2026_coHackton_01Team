@@ -426,6 +426,19 @@ header[data-testid="stHeader"] { background: transparent; }
 .gb-chip.avoid { background: #FFF1E6; border-style: dashed; }  /* 피하고 싶은 조건 */
 /* 작은 안내: 사진을 누르면 안내 페이지가 열린다는 것 등 */
 .gb-tip { font-size: 0.88rem; color: #3F4A43; margin: -0.2rem 0 0.4rem; }
+/* AI 채팅 대화 전 환영 말풍선 */
+.gb-guide-hello { font-size: 1.02rem; margin-bottom: 0.7rem; }
+.gb-guide-title { font-family: 'Jua', sans-serif; font-size: 1rem; margin-bottom: 0.45rem; }
+.gb-guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.gb-guide-item {
+  background: #FFFDF5; border: 1.5px solid #1F2B24; border-radius: 12px; padding: 8px 12px;
+  display: flex; flex-direction: column; gap: 2px; font-size: 0.9rem;
+}
+.gb-guide-item b { font-family: 'Jua', sans-serif; font-weight: 400; }
+.gb-guide-item span { color: #3F4A43; word-break: keep-all; }  /* 한국어는 낱말 단위로 줄바꿈 (팝업스/토어 X) */
+.gb-guide-db { margin-top: 0.7rem; font-size: 0.88rem; color: #3F4A43; }
+/* 첫 화면: 로고 아래 [로그인 | 회원가입]은 휴대폰에서만 (아래 @media) */
+.st-key-gb_landing_auth_m { display: none; }
 
 .gb-card-img { margin-bottom: 14px; }  /* 그림과 하트 사이 간격 */
 .gb-card-img img { display: block; width: 100%; aspect-ratio: 2 / 1; object-fit: cover; border-radius: 12px; border: 2px solid #1F2B24; }
@@ -609,7 +622,14 @@ header[data-testid="stHeader"] { background: transparent; }
     font-size: 1.05rem !important; white-space: nowrap;
   }
 
-  /* 첫 화면 위쪽: 소개 → [AI에게 물어보기] → [로그인 | 회원가입] */
+  /* 첫 화면: 위쪽은 소개 → [AI에게 물어보기], [로그인 | 회원가입]은 로고 아래로 */
+  .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3), .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(4) { display: none; }
+  .st-key-gb_landing_auth_m { display: flex; width: min(100%, 340px) !important; align-self: center; margin-top: 0.6rem; }
+  .st-key-gb_landing_auth_m > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.6rem !important; }
+  .st-key-gb_landing_auth_m > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
+  .gb-guide-grid { gap: 6px; }  /* 휴대폰에서도 두 칸씩, 대신 작게 */
+  .gb-guide-item { padding: 6px 8px; font-size: 0.8rem; border-radius: 10px; }
+  .gb-guide-hello { font-size: 0.95rem; margin-bottom: 0.5rem; }
   .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; }
   .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1), .st-key-gb_landing_top > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) { min-width: 100% !important; }
   .gb-intro { display: block; text-align: center; border-radius: 16px; font-size: 0.92rem; }
