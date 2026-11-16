@@ -26,8 +26,9 @@ def _mtime(name: str) -> float:
         return 0.0
 
 
+# 기록이 없을 때(이 app.py가 처음 실행될 때)도 이미 올라간 모듈은 한 번 다시 읽는다.
 _changed = any(
-    name in sys.modules and _mtimes.get(name) not in (None, _mtime(name))
+    name in sys.modules and _mtimes.get(name) != _mtime(name)
     for name in _LOCAL_MODULES
 )
 for name in _LOCAL_MODULES:
